@@ -1,0 +1,38 @@
+# NOTICE
+
+## Superpowers (vendored)
+
+This project redistributes an unmodified snapshot of the Superpowers skill
+library.
+
+```
+Superpowers
+Copyright (c) 2025 Jesse Vincent
+https://github.com/obra/superpowers
+Licensed under the MIT License
+```
+
+Vendored at version 7.0.0, commit
+`bb92a77741419a4ab5f06e711a283343f1ada0c3`.
+
+- Files: `vendor/superpowers/skills/` and `vendor/superpowers/LICENSE`
+- The full MIT license text is at `vendor/superpowers/LICENSE`, reproduced
+  verbatim as required by the license's notice condition.
+- The vendored files are unmodified. Provenance and the re-vendoring procedure
+  are documented in `vendor/superpowers/README.md`.
+
+## Original work in this repository
+
+Everything outside `vendor/` is original to this project and MIT licensed under
+the root [`LICENSE`](LICENSE): the installer, the bootstrap generator, the
+platform patch, the DSH harness reference, the tests, and the documentation.
+
+`lib/session-start.sh` reimplements the idea of upstream's
+`hooks/session-start` for DSH's instruction-file channel. It is a separate
+implementation, not a copy of that script; upstream's version emits
+harness-specific JSON envelopes that DSH has no consumer for.
+
+## No affiliation
+
+This is an independent community adapter. It is not affiliated with or endorsed
+by the Superpowers project, Prime Radiant, or DeepSeek.

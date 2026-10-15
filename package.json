@@ -1,0 +1,50 @@
+{
+  "name": "superpowers-dsh",
+  "version": "0.1.0",
+  "description": "Superpowers for the DeepSeek Harness: installs the Superpowers skill library and wires its session bootstrap into DSH",
+  "keywords": [
+    "superpowers",
+    "dsh",
+    "deepseek-harness",
+    "agent-skills",
+    "skills",
+    "tdd",
+    "workflow"
+  ],
+  "license": "MIT",
+  "author": "Vivek Durairaj",
+  "homepage": "https://github.com/dkeviv/superpowers-dsh#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dkeviv/superpowers-dsh.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dkeviv/superpowers-dsh/issues"
+  },
+  "type": "module",
+  "bin": {
+    "superpowers-dsh": "bin/install.sh"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "references/",
+    "vendor/",
+    "docs/",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "test": "bash tests/run.sh",
+    "install-superpowers": "bash bin/install.sh",
+    "uninstall-superpowers": "bash bin/install.sh --uninstall"
+  },
+  "os": [
+    "darwin",
+    "linux"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

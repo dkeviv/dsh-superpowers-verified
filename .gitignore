@@ -1,0 +1,14 @@
+# macOS
+.DS_Store
+
+# Installer scratch files (mktemp artifacts inside the repo)
+*.XXXXXX
+*.trim
+*.stripped
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Superpowers' own working artifacts, if a skill is exercised in this repo
+.superpowers/

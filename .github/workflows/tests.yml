@@ -1,0 +1,46 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    # macOS and Linux only: the installer is a bash script that assumes a POSIX
+    # shell, and the vendored skills' helper scripts do too.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run test suite
+        run: bash tests/run.sh
+
+      - name: Install into a scratch prefix and verify the result
+        run: |
+          set -euo pipefail
+          prefix="$(mktemp -d)"
+          ./bin/install.sh --target "$prefix/skills" --dsh-home "$prefix/dsh" >/dev/null
+          test "$(find "$prefix/skills" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')" = "15"
+          grep -qF 'DeepSeek Harness (DSH)' "$prefix/skills/using-superpowers/SKILL.md"
+          grep -qF 'BEGIN superpowers-dsh bootstrap' "$prefix/dsh/AGENTS.md"
+          ./bin/install.sh --target "$prefix/skills" --dsh-home "$prefix/dsh" --uninstall >/dev/null
+          test ! -e "$prefix/dsh/AGENTS.md"
+
+      - name: Shell syntax check
+        run: |
+          bash -n bin/install.sh
+          bash -n lib/session-start.sh
+          bash -n tests/run.sh
