@@ -14,7 +14,7 @@ by the Superpowers project, Prime Radiant, or DeepSeek.
 [![tests](https://github.com/dkeviv/dsh-superpowers-verified/actions/workflows/tests.yml/badge.svg)](https://github.com/dkeviv/dsh-superpowers-verified/actions/workflows/tests.yml)
 
 ```
-15 skills · DeepSeek Harness (DSH) · 64 tests · non-destructive install
+15 skills · DeepSeek Harness (DSH) · 86 tests · live-catalog verification · non-destructive install
 ```
 
 **Keywords:** Superpowers fork for DeepSeek Harness · DSH skills ·
@@ -72,11 +72,13 @@ incompatibility this fork documents rather than silently patches.
 There are several Superpowers ports for DSH. This one is built around two
 properties rather than around features:
 
-**Verification you can re-run.** `tests/run.sh` is 64 checks covering snapshot
-integrity, fidelity against the vendored copy, idempotency, marker handling,
-migration from a pre-markers install, option handling, and uninstall — plus a
-GitHub Actions matrix on Ubuntu and macOS. Most ports *assert* DSH
-compatibility; this one demonstrates it.
+**Verification against the real catalog, not against prose.** `bin/verify.sh`
+mounts DSH's own skill registry and filesystem provider and asks what actually
+resolves — then checks it. Around that, `tests/run.sh` is 86 checks covering
+snapshot integrity, fidelity against the vendored copy, idempotency, hostile
+`AGENTS.md` inputs, migration paths, and uninstall, plus a GitHub Actions matrix
+on Ubuntu and macOS. Most ports *assert* DSH compatibility; this one
+demonstrates it, and fails loudly when it does not hold.
 
 **An install that cannot damage your setup.** The suite runs entirely in a
 throwaway prefix, so it never touches your real skill root or `AGENTS.md`. The
@@ -93,7 +95,7 @@ DSH-specific code lives outside `vendor/`.
 | | This fork | Typical DSH port |
 | --- | --- | --- |
 | Install mechanism | Filesystem installer into DSH's native skill roots | Cordis plugin bundle via `dsh plugin add` |
-| Compatibility evidence | 64-check suite + 2-OS CI | Prose assertion |
+| Compatibility evidence | 86-check suite + live-catalog verifier + 2-OS CI | Prose assertion |
 | Install reversibility | Marked-block ownership, exact uninstall | Varies |
 | Upstream skills | Pinned commit, vendored | Usually synced at build time |
 
@@ -135,30 +137,61 @@ All 15 Superpowers skills:
 
 ## Verification
 
-```bash
-tests/run.sh          # 64 checks, offline, no writes outside a temp dir
-```
-
-It passes on a fresh clone. To check a live install, confirm the three moving
-parts:
+Two independent things, both re-runnable:
 
 ```bash
-ls ~/.agents/skills | wc -l                              # 15 from this fork
-grep -c 'DeepSeek Harness (DSH)' \
-  ~/.agents/skills/using-superpowers/SKILL.md            # 1
-grep -c 'BEGIN dsh-superpowers-verified bootstrap' \
-  "${DSH_HOME:-$HOME/.dsh}/AGENTS.md"                    # 1
+tests/run.sh          # 86 checks, offline, no writes outside a temp dir
+bin/verify.sh         # audit a LIVE install against DSH's own skill catalog
 ```
+
+`bin/verify.sh` is the interesting one. It does not read your files and guess —
+it mounts DSH's real skill registry and filesystem provider in a bare Cordis
+context (the same code the running harness uses), asks for the resolved
+catalog, and checks the answers:
+
+```bash
+$ ./bin/verify.sh
+Verifying Superpowers for DSH
+  modules: /Users/you/.npm/_npx/…/node_modules
+  skills:  /Users/you/.agents/skills
+  AGENTS:  /Users/you/.dsh/AGENTS.md
+
+  ✓ catalog resolves completely        22 skills
+  ✓ every vendored skill resolves from --target   15/15 at …/.agents/skills
+  ✓ no resolved skill name uses a namespace
+  ✓ every installed skill has a loadable name
+  ✓ no skill is shadowed by $DSH_HOME/skills
+  ✓ DSH reference file installed
+  ✓ adaptation list names DSH
+  ✓ no other harness is advertised
+  ✓ namespace workaround is documented
+  ✓ bootstrap present in AGENTS.md     one balanced block
+  ! upstream namespace references      46 references use superpowers:<name>; agents must strip the prefix
+
+10 passed, 1 warnings, 0 failed
+```
+
+It exits non-zero when something is actually wrong, so it works in CI or a
+pre-commit hook. It catches, among others: a skill that is installed but does
+not resolve (including one silently skipped by DSH for an illegal name), a
+skill shadowed by a higher-precedence root, a platform list that were reverted
+to upstream, an unpaired bootstrap marker, and a missing reference file.
+
+Options: `--target`, `--dsh-home`, `--modules <node_modules>`, `--json`. If it
+cannot find the DSH packages, it says so and exits 2 rather than reporting a
+misleading pass — set `DSH_NODE_MODULES` if auto-detection fails.
 
 ## Layout
 
 ```
 bin/install.sh                     installer / uninstaller
+bin/verify.sh                      audits a live install against the real catalog
+lib/dsh-resolve-skills.mjs         mounts DSH's skill registry standalone
 lib/session-start.sh               generates the bootstrap block
-lib/patch-using-superpowers.mjs    registers DSH in the skill's platform list
+lib/patch-using-superpowers.mjs    rewrites the skill's platform-adaptation list
 references/dsh-tools.md            the DSH harness reference (installed into the skill)
 vendor/superpowers/                unmodified upstream snapshot (MIT, pinned commit)
-tests/run.sh                       64-check end-to-end suite
+tests/run.sh                       86-check end-to-end suite
 docs/install.md                    install, update, troubleshooting notes
 ```
 

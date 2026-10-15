@@ -39,8 +39,24 @@ jobs:
           ./bin/install.sh --target "$prefix/skills" --dsh-home "$prefix/dsh" --uninstall >/dev/null
           test ! -e "$prefix/dsh/AGENTS.md"
 
-      - name: Shell syntax check
+      # bin/verify.sh resolves the live DSH catalog, so it needs the real DSH
+      # packages. Fetch them; if that is unavailable, skip rather than fail —
+      # tests/run.sh already covers the verifier's own logic either way.
+      - name: Verify against the live DSH catalog
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          npm install --no-save --silent @deepseek-ai/dsh >/dev/null 2>&1 || exit 0
+          test -d "$PWD/node_modules/@deepseek-ai/dsh-skill" || exit 0
+          prefix="$(mktemp -d)"
+          ./bin/install.sh --target "$prefix/skills" --dsh-home "$prefix/dsh" >/dev/null
+          ./bin/verify.sh --modules "$PWD/node_modules" --target "$prefix/skills" --dsh-home "$prefix/dsh"
+
+      - name: Shell and JS syntax check
         run: |
           bash -n bin/install.sh
+          bash -n bin/verify.sh
           bash -n lib/session-start.sh
           bash -n tests/run.sh
+          node --check lib/dsh-resolve-skills.mjs
+          node --check lib/patch-using-superpowers.mjs

@@ -55,7 +55,8 @@
   "scripts": {
     "test": "bash tests/run.sh",
     "install-superpowers": "bash bin/install.sh",
-    "uninstall-superpowers": "bash bin/install.sh --uninstall"
+    "uninstall-superpowers": "bash bin/install.sh --uninstall",
+    "verify": "bash bin/verify.sh"
   },
   "os": [
     "darwin",

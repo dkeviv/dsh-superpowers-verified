@@ -40,6 +40,7 @@ upstream is small and auditable:
 | Copy skills into DSH's native skill roots | `bin/install.sh` |
 | Rewrite the skill's platform-adaptation list to name DSH only, and drop the other harnesses' reference files | `lib/patch-using-superpowers.mjs` |
 | Generate the session bootstrap for `$DSH_HOME/AGENTS.md` | `lib/session-start.sh` |
+| Verify a live install against DSH's real skill catalog | `bin/verify.sh`, `lib/dsh-resolve-skills.mjs` |
 | Document DSH's tools, sandbox, and session storage | `references/dsh-tools.md` |
 
 Nothing else upstream is modified — no skill body is rewritten, no skill is

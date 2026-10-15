@@ -55,6 +55,28 @@ block is written. Content after the legacy block is kept.
 This check is deliberately narrow. A file that merely mentions the phrase
 further down is not modified beyond the normal append.
 
+## Verifying an install
+
+`bin/verify.sh` audits a live install against DSH's own skill catalog rather
+than against assumptions. It mounts DSH's registry and filesystem provider in a
+bare Cordis context, so it needs the DSH packages but does **not** need DSH to
+be running:
+
+```bash
+./bin/verify.sh                       # defaults: ~/.agents/skills, ~/.dsh
+./bin/verify.sh --target <dir> --dsh-home <dir>
+./bin/verify.sh --modules <node_modules>   # if auto-detection fails
+./bin/verify.sh --json                      # machine-readable
+```
+
+Exit status is 0 when every check passes (warnings allowed), 1 when a check
+fails, and 2 for a usage or environment problem — for example when the DSH
+packages cannot be found, which it reports rather than silently passing.
+
+Set `DSH_NODE_MODULES` if the packages live somewhere unusual. Auto-detection
+tries `npm root -g`, then the npx cache (`~/.npm/_npx/*/node_modules`), which is
+where `npx @deepseek-ai/dsh` installs them.
+
 ## Troubleshooting
 
 **Skills don't appear.** Confirm the skill directories landed where DSH looks:

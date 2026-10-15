@@ -362,7 +362,87 @@ check "refuses to run without an argument" \
   bash -c "! bash '${REPO_ROOT}/lib/session-start.sh' 2>/dev/null"
 
 # ---------------------------------------------------------------------------
-section "10. Patch script robustness"
+section "10. Verifier (bin/verify.sh)"
+
+# The verifier needs the real DSH packages, which a plain checkout may not have.
+# Skip rather than fail when absent — but never skip silently.
+VERIFY="${REPO_ROOT}/bin/verify.sh"
+verify_available=0
+if [ ! -x "$VERIFY" ]; then
+  no "verifier is executable" "bin/verify.sh missing or not executable"
+else
+  ok "verifier is executable"
+  if "$VERIFY" --help >/dev/null 2>&1; then
+    ok "verifier --help exits 0"
+  else
+    no "verifier --help exits 0"
+  fi
+
+  read -r SV HV <<<"$(fresh_prefix verify)"
+  "$INSTALL" --target "$SV" --dsh-home "$HV" >/dev/null 2>&1
+  if "$VERIFY" --target "$SV" --dsh-home "$HV" >/dev/null 2>&1; then
+    ok "passes on a clean install"
+    verify_available=1
+  elif "$VERIFY" --target "$SV" --dsh-home "$HV" 2>&1 | grep -q 'cannot find the DSH packages'; then
+    printf '  \033[33m-\033[0m %s\n' "skipped: DSH packages not present on this machine"
+  else
+    no "passes on a clean install" "run bin/verify.sh directly for detail"
+  fi
+
+  if [ "$verify_available" -eq 1 ]; then
+    read -r SV2 HV2 <<<"$(fresh_prefix verify_missing)"
+    "$INSTALL" --target "$SV2" --dsh-home "$HV2" >/dev/null 2>&1
+    rm -rf "${SV2}/writing-plans"
+    if "$VERIFY" --target "$SV2" --dsh-home "$HV2" >/dev/null 2>&1; then
+      no "fails when a skill is missing" "exited 0"
+    else
+      ok "fails when a skill is missing"
+    fi
+    check "names the missing skill" \
+      bash -c "'$VERIFY' --target '$SV2' --dsh-home '$HV2' 2>&1 | grep -q 'writing-plans'"
+
+    read -r SV3 HV3 <<<"$(fresh_prefix verify_platform)"
+    "$INSTALL" --target "$SV3" --dsh-home "$HV3" >/dev/null 2>&1
+    python3 - "${SV3}/using-superpowers/SKILL.md" <<'PY'
+import pathlib, re, sys
+p = pathlib.Path(sys.argv[1]); t = p.read_text()
+t = re.sub(
+    r"This build of Superpowers.*?references/dsh-tools\.md`\n",
+    "If your harness appears here, read its reference file for special instructions:\n\n- Claude Code: `references/claude-code-tools.md`\n",
+    t, flags=re.S)
+p.write_text(t)
+PY
+    if "$VERIFY" --target "$SV3" --dsh-home "$HV3" >/dev/null 2>&1; then
+      no "fails when the platform list is reverted" "exited 0"
+    else
+      ok "fails when the platform list is reverted"
+    fi
+
+    read -r SV4 HV4 <<<"$(fresh_prefix verify_marker)"
+    "$INSTALL" --target "$SV4" --dsh-home "$HV4" >/dev/null 2>&1
+    printf '\n<!-- BEGIN dsh-superpowers-verified bootstrap -->\n' >> "${HV4}/AGENTS.md"
+    if "$VERIFY" --target "$SV4" --dsh-home "$HV4" >/dev/null 2>&1; then
+      no "fails on an unpaired bootstrap marker" "exited 0"
+    else
+      ok "fails on an unpaired bootstrap marker"
+    fi
+
+    # DSH skips an illegal name silently, so it never reaches the catalog —
+    # which is exactly why the verifier has to look on disk for it.
+    read -r SV5 HV5 <<<"$(fresh_prefix verify_badname)"
+    "$INSTALL" --target "$SV5" --dsh-home "$HV5" >/dev/null 2>&1
+    mkdir -p "${SV5}/bogus"
+    printf -- '---\nname: superpowers:bogus\ndescription: x\n---\n\nbody\n' > "${SV5}/bogus/SKILL.md"
+    if "$VERIFY" --target "$SV5" --dsh-home "$HV5" >/dev/null 2>&1; then
+      no "fails on a namespace in a skill name" "exited 0"
+    else
+      ok "fails on a namespace in a skill name"
+    fi
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+section "11. Patch script robustness"
 
 check "patch script fails on a missing skill dir" \
   bash -c "! node '${REPO_ROOT}/lib/patch-using-superpowers.mjs' '${WORK}/nope' 2>/dev/null"
