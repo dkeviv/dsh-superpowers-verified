@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# End-to-end tests for superpowers-dsh.
+# End-to-end tests for dsh-superpowers-verified.
 #
 # Everything runs against a throwaway prefix, so the suite never touches a real
 # ~/.agents/skills or ~/.dsh/AGENTS.md.
@@ -112,7 +112,7 @@ check_eq "second install changes nothing" "$before" "$(cat "${SKILLS}/using-supe
 check_eq "second install does not duplicate the DSH bullet" "1" \
   "$(grep -cF 'DeepSeek Harness (DSH)' "${SKILLS}/using-superpowers/SKILL.md")"
 check_eq "second install does not duplicate the bootstrap block" "1" \
-  "$(grep -cF 'BEGIN superpowers-dsh bootstrap' "${DSHHOME}/AGENTS.md")"
+  "$(grep -cF 'BEGIN dsh-superpowers-verified bootstrap' "${DSHHOME}/AGENTS.md")"
 
 # A third run after deleting one skill restores it.
 rm -rf "${SKILLS}/writing-plans"
@@ -125,7 +125,7 @@ section "4. Bootstrap block"
 AGENTS_MD="${DSHHOME}/AGENTS.md"
 check "writes the bootstrap to \$DSH_HOME/AGENTS.md" test -f "$AGENTS_MD"
 check "block is delimited by markers" \
-  bash -c "grep -qF 'BEGIN superpowers-dsh bootstrap' '$AGENTS_MD' && grep -qF 'END superpowers-dsh bootstrap' '$AGENTS_MD'"
+  bash -c "grep -qF 'BEGIN dsh-superpowers-verified bootstrap' '$AGENTS_MD' && grep -qF 'END dsh-superpowers-verified bootstrap' '$AGENTS_MD'"
 check "contains Superpowers' activation preamble" grep -qF 'You have superpowers.' "$AGENTS_MD"
 check "contains the full using-superpowers body" grep -qF 'Red Flags' "$AGENTS_MD"
 check "points at DSH's skill tool, not a Skill tool" \
@@ -133,7 +133,7 @@ check "points at DSH's skill tool, not a Skill tool" \
 
 # Markers must be well-ordered and the block last.
 check "BEGIN precedes END" \
-  bash -c "[ \"\$(grep -nF 'BEGIN superpowers-dsh bootstrap' '$AGENTS_MD' | cut -d: -f1)\" -lt \"\$(grep -nF 'END superpowers-dsh bootstrap' '$AGENTS_MD' | cut -d: -f1)\" ]"
+  bash -c "[ \"\$(grep -nF 'BEGIN dsh-superpowers-verified bootstrap' '$AGENTS_MD' | cut -d: -f1)\" -lt \"\$(grep -nF 'END dsh-superpowers-verified bootstrap' '$AGENTS_MD' | cut -d: -f1)\" ]"
 
 # Foreign content in AGENTS.md must survive a reinstall.
 printf '# My own global instructions\n\nAlways use tabs.\n' | cat - "$AGENTS_MD" > "${AGENTS_MD}.tmp" && mv "${AGENTS_MD}.tmp" "$AGENTS_MD"
@@ -141,9 +141,9 @@ printf '# My own global instructions\n\nAlways use tabs.\n' | cat - "$AGENTS_MD"
 check "preserves user content that precedes the block" \
   grep -qF 'Always use tabs.' "$AGENTS_MD"
 check_eq "still exactly one block after reinstall over user content" "1" \
-  "$(grep -cF 'BEGIN superpowers-dsh bootstrap' "$AGENTS_MD")"
+  "$(grep -cF 'BEGIN dsh-superpowers-verified bootstrap' "$AGENTS_MD")"
 check "user content stays above the block" \
-  bash -c "[ \"\$(grep -nF 'Always use tabs.' '$AGENTS_MD' | cut -d: -f1)\" -lt \"\$(grep -nF 'BEGIN superpowers-dsh bootstrap' '$AGENTS_MD' | cut -d: -f1)\" ]"
+  bash -c "[ \"\$(grep -nF 'Always use tabs.' '$AGENTS_MD' | cut -d: -f1)\" -lt \"\$(grep -nF 'BEGIN dsh-superpowers-verified bootstrap' '$AGENTS_MD' | cut -d: -f1)\" ]"
 
 # ---------------------------------------------------------------------------
 section "5. Options"
@@ -186,7 +186,7 @@ printf '# Keep me\n' | cat - "${H6}/AGENTS.md" > "${H6}/AGENTS.md.tmp" && mv "${
 check_eq "removes every installed skill" "0" \
   "$(find "$S6" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')"
 check "removes the bootstrap block" \
-  bash -c "! grep -qF 'superpowers-dsh bootstrap' '${H6}/AGENTS.md'"
+  bash -c "! grep -qF 'superpowers-verified bootstrap' '${H6}/AGENTS.md'"
 check "keeps user content in AGENTS.md" grep -qF 'Keep me' "${H6}/AGENTS.md"
 check "keeps an unrelated skill in the target root" \
   bash -c "mkdir -p '$S6/my-own-skill' && '$INSTALL' --target '$S6' --dsh-home '$H6' >/dev/null 2>&1 && '$INSTALL' --target '$S6' --dsh-home '$H6' --uninstall >/dev/null 2>&1 && [ -d '$S6/my-own-skill' ]"
@@ -217,13 +217,13 @@ check "removes the legacy unmarked block" \
 check "keeps content that followed the legacy block" \
   grep -qF 'Use tabs.' "${H7}/AGENTS.md"
 check_eq "ends with exactly one managed block" "1" \
-  "$(grep -cF 'BEGIN superpowers-dsh bootstrap' "${H7}/AGENTS.md")"
+  "$(grep -cF 'BEGIN dsh-superpowers-verified bootstrap' "${H7}/AGENTS.md")"
 check_eq "contains exactly one copy of the skill body" "1" \
   "$(grep -cF 'You have superpowers.' "${H7}/AGENTS.md")"
 check_eq "contains exactly one closing tag" "1" \
   "$(grep -cF '</EXTREMELY_IMPORTANT>' "${H7}/AGENTS.md")"
 check "user content survives above the block" \
-  bash -c "[ \"\$(grep -nF 'Use tabs.' '${H7}/AGENTS.md' | cut -d: -f1)\" -lt \"\$(grep -nF 'BEGIN superpowers-dsh bootstrap' '${H7}/AGENTS.md' | cut -d: -f1)\" ]"
+  bash -c "[ \"\$(grep -nF 'Use tabs.' '${H7}/AGENTS.md' | cut -d: -f1)\" -lt \"\$(grep -nF 'BEGIN dsh-superpowers-verified bootstrap' '${H7}/AGENTS.md' | cut -d: -f1)\" ]"
 
 # A file that merely mentions the phrase further down must not be touched.
 read -r S8 H8 <<<"$(fresh_prefix notlegacy)"
@@ -233,7 +233,42 @@ printf '# Notes\n\nI once read about a superpowers bootstrap for DSH.\n\nKeep me
 check "leaves a non-leading mention of the phrase alone" \
   grep -qF 'I once read about a superpowers bootstrap' "${H8}/AGENTS.md"
 check "still appends the managed block below user notes" \
-  grep -qF 'BEGIN superpowers-dsh bootstrap' "${H8}/AGENTS.md"
+  grep -qF 'BEGIN dsh-superpowers-verified bootstrap' "${H8}/AGENTS.md"
+
+# Regression: this project was called `superpowers-dsh` before it was renamed,
+# and that marker is sitting in real AGENTS.md files. Upgrading must replace the
+# block in place rather than appending a second copy of the whole skill body.
+read -r S9 H9 <<<"$(fresh_prefix renamed)"
+mkdir -p "$H9"
+{
+  printf '# User notes\n\nKeep me.\n\n'
+  printf '<!-- BEGIN superpowers-dsh bootstrap -->\n'
+  printf '<!-- Managed by superpowers-dsh. Regenerated by bin/install.sh; edits here are overwritten. -->\n'
+  printf '<EXTREMELY_IMPORTANT>\nYou have superpowers.\n\nPRE-RENAME-BODY\n</EXTREMELY_IMPORTANT>\n'
+  printf '<!-- END superpowers-dsh bootstrap -->\n'
+} > "${H9}/AGENTS.md"
+
+"$INSTALL" --target "$S9" --dsh-home "$H9" >/dev/null 2>&1
+check "replaces the pre-rename block in place" \
+  bash -c "! grep -qF 'PRE-RENAME-BODY' '${H9}/AGENTS.md'"
+check_eq "leaves exactly one block after the rename" "1" \
+  "$(grep -cF 'BEGIN dsh-superpowers-verified bootstrap' "${H9}/AGENTS.md")"
+check_eq "no stale pre-rename marker survives" "0" \
+  "$(grep -cF 'BEGIN superpowers-dsh bootstrap' "${H9}/AGENTS.md")"
+check "writes the new marker" \
+  grep -qF 'BEGIN dsh-superpowers-verified bootstrap' "${H9}/AGENTS.md"
+check "preserves user notes during the rename" \
+  grep -qF 'Keep me.' "${H9}/AGENTS.md"
+
+# Uninstall must also work against a pre-rename install.
+read -r S10 H10 <<<"$(fresh_prefix renamed_uninstall)"
+mkdir -p "$H10"
+printf '# Begin\n<!-- BEGIN superpowers-dsh bootstrap -->\nBODY\n<!-- END superpowers-dsh bootstrap -->\n' > "${H10}/AGENTS.md"
+"$INSTALL" --target "$S10" --dsh-home "$H10" --uninstall >/dev/null 2>&1
+check "uninstall recognizes the pre-rename marker" \
+  bash -c "! grep -qF 'superpowers-dsh bootstrap' '${H10}/AGENTS.md'"
+check "uninstall keeps user content from a pre-rename install" \
+  grep -qF '# Begin' "${H10}/AGENTS.md"
 
 # ---------------------------------------------------------------------------
 section "8. Bootstrap generator"

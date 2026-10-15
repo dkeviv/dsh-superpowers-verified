@@ -25,9 +25,9 @@ DSH loads `AGENTS.md` from `$DSH_HOME` as user-global instructions, plus
 installer writes is delimited:
 
 ```
-<!-- BEGIN superpowers-dsh bootstrap -->
+<!-- BEGIN dsh-superpowers-verified bootstrap -->
 ...
-<!-- END superpowers-dsh bootstrap -->
+<!-- END dsh-superpowers-verified bootstrap -->
 ```
 
 The installer **owns only what is between those markers**. Re-running replaces
@@ -72,7 +72,7 @@ not — look for the same name in `<project>/.dsh/skills`,
 happen. Verify it is present and current:
 
 ```bash
-grep -c 'BEGIN superpowers-dsh bootstrap' "${DSH_HOME:-$HOME/.dsh}/AGENTS.md"
+grep -c 'BEGIN dsh-superpowers-verified bootstrap' "${DSH_HOME:-$HOME/.dsh}/AGENTS.md"
 ```
 
 Check that the file has no YAML/encoding damage from another tool, and that its

@@ -1,29 +1,45 @@
 {
-  "name": "superpowers-dsh",
+  "name": "@dkeviv/dsh-superpowers-verified",
   "version": "0.1.0",
-  "description": "Superpowers for the DeepSeek Harness: installs the Superpowers skill library and wires its session bootstrap into DSH",
+  "description": "Fork of Superpowers (obra/superpowers) for the DeepSeek Harness (DSH): the full brainstorming, planning, TDD, debugging and subagent-driven-development methodology, installed verifiably and reversibly",
   "keywords": [
     "superpowers",
-    "dsh",
+    "superpowers-fork",
+    "obra-superpowers",
+    "deepseek",
     "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "dsh-skills",
     "agent-skills",
     "skills",
+    "coding-agent",
+    "agentic-workflow",
     "tdd",
-    "workflow"
+    "test-driven-development",
+    "systematic-debugging",
+    "subagent-driven-development",
+    "brainstorming",
+    "writing-plans",
+    "code-review",
+    "worktree",
+    "claude-code-alternative",
+    "cordis",
+    "ai-coding-agent"
   ],
   "license": "MIT",
   "author": "Vivek Durairaj",
-  "homepage": "https://github.com/dkeviv/superpowers-dsh#readme",
+  "homepage": "https://github.com/dkeviv/dsh-superpowers-verified#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dkeviv/superpowers-dsh.git"
+    "url": "git+https://github.com/dkeviv/dsh-superpowers-verified.git"
   },
   "bugs": {
-    "url": "https://github.com/dkeviv/superpowers-dsh/issues"
+    "url": "https://github.com/dkeviv/dsh-superpowers-verified/issues"
   },
   "type": "module",
   "bin": {
-    "superpowers-dsh": "bin/install.sh"
+    "dsh-superpowers-verified": "bin/install.sh"
   },
   "files": [
     "bin/",
@@ -32,6 +48,7 @@
     "vendor/",
     "docs/",
     "README.md",
+    "FORK.md",
     "LICENSE",
     "NOTICE"
   ],

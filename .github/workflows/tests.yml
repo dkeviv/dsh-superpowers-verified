@@ -35,7 +35,7 @@ jobs:
           ./bin/install.sh --target "$prefix/skills" --dsh-home "$prefix/dsh" >/dev/null
           test "$(find "$prefix/skills" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')" = "15"
           grep -qF 'DeepSeek Harness (DSH)' "$prefix/skills/using-superpowers/SKILL.md"
-          grep -qF 'BEGIN superpowers-dsh bootstrap' "$prefix/dsh/AGENTS.md"
+          grep -qF 'BEGIN dsh-superpowers-verified bootstrap' "$prefix/dsh/AGENTS.md"
           ./bin/install.sh --target "$prefix/skills" --dsh-home "$prefix/dsh" --uninstall >/dev/null
           test ! -e "$prefix/dsh/AGENTS.md"
 
