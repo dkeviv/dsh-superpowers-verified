@@ -282,17 +282,24 @@ write_bootstrap_block() {
 # Give $1 the mode of $2, or 0600 when $2 does not exist.
 #
 # Replacing a file via mv discards the original mode, which would silently make
-# a 0600 AGENTS.md world-readable. Stat syntax differs between BSD and GNU, so
-# try both and fall back to a private mode rather than guessing.
+# a 0600 AGENTS.md world-readable. Stat syntax differs between GNU and BSD, and
+# the order matters: on GNU, `stat -f` means --file-system and SUCCEEDS while
+# printing filesystem statistics, so a BSD-first fallback captures garbage and
+# the caller falls through to a default. Try the GNU form first (it fails on
+# BSD), then the BSD form, and validate the result before applying it.
 set_file_mode() {
   local new="$1" existing="$2" mode=""
   if [ -e "$existing" ]; then
-    mode="$(stat -f '%Lp' "$existing" 2>/dev/null || stat -c '%a' "$existing" 2>/dev/null || true)"
+    mode="$(stat -c '%a' "$existing" 2>/dev/null | tr -d '[:space:]' || true)"
+    if ! printf '%s' "$mode" | grep -qE '^[0-7]{3,4}$'; then
+      mode="$(stat -f '%Lp' "$existing" 2>/dev/null | tr -d '[:space:]' || true)"
+    fi
   fi
-  case "$mode" in
-    [0-7][0-7][0-7]|[0-7][0-7][0-7][0-7]) chmod "$mode" "$new" 2>/dev/null || true ;;
-    *) chmod 600 "$new" 2>/dev/null || true ;;
-  esac
+  if printf '%s' "$mode" | grep -qE '^[0-7]{3,4}$'; then
+    chmod "$mode" "$new" 2>/dev/null || true
+  else
+    chmod 600 "$new" 2>/dev/null || true
+  fi
 }
 
 # Remove a pre-markers Superpowers bootstrap block, if the file opens with one.

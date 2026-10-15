@@ -324,11 +324,15 @@ mkdir -p "$H14"
 printf 'secret\n' > "${H14}/AGENTS.md"
 chmod 600 "${H14}/AGENTS.md"
 "$INSTALL" --target "$S14" --dsh-home "$H14" >/dev/null 2>&1
-mode="$(stat -f '%Lp' "${H14}/AGENTS.md" 2>/dev/null || stat -c '%a' "${H14}/AGENTS.md" 2>/dev/null)"
+# GNU first: on GNU, `stat -f` means --file-system and succeeds with garbage.
+mode="$(stat -c '%a' "${H14}/AGENTS.md" 2>/dev/null | tr -d '[:space:]')"
+if ! printf '%s' "$mode" | grep -qE '^[0-7]{3,4}$'; then
+  mode="$(stat -f '%Lp' "${H14}/AGENTS.md" 2>/dev/null | tr -d '[:space:]')"
+fi
 if [ "$mode" = "600" ]; then
   ok "a 0600 AGENTS.md stays 0600"
 else
-  no "a 0600 AGENTS.md stays 0600" "expected [600], got [$mode] (stat: $(uname -s), file: $(ls -l "${H14}/AGENTS.md"))"
+  no "a 0600 AGENTS.md stays 0600" "expected [600], got [$mode] (stat: $(uname -s), ls: $(ls -l "${H14}/AGENTS.md"))"
 fi
 check "the block was still written" grep -qF 'BEGIN dsh-superpowers-verified' "${H14}/AGENTS.md"
 
