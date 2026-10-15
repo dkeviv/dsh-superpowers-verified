@@ -53,11 +53,19 @@ them. DSH's equivalent channel is its user-global instruction file,
 `$DSH_HOME/AGENTS.md`, loaded every turn of every session — so the bootstrap
 goes there, inside self-managed markers.
 
-**2. DSH has a different tool vocabulary.** Nothing here is named `Task`,
-`TodoWrite`, or `Skill`. DSH provides `skill`, `todo_write`,
+**2. DSH has a different tool vocabulary.** Nothing here is named `Agent`,
+`Task`, `TodoWrite`, or `Skill`. DSH provides `skill`, `todo_write`,
 `subagent`/`subagent_fork`/`workflow`, native plan mode, and a file sandbox.
-[`references/dsh-tools.md`](references/dsh-tools.md) is the translation layer,
-registered through Superpowers' own platform-adaptation list.
+[`references/dsh-tools.md`](references/dsh-tools.md) is the translation layer.
+Upstream's platform-adaptation list is rewritten to name DSH **only**: the
+Claude Code reference file left in place describes nested-subagent depth tuning
+and a `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` variable that do not exist here.
+
+**3. DSH skill names carry no namespace.** Upstream cross-references its own
+skills as `superpowers:writing-plans`, but DSH rejects a colon in a skill name
+outright, so those references are unresolvable as written. See
+[Known limitations](#known-limitations) — this is the one upstream
+incompatibility this fork documents rather than silently patches.
 
 ## What makes this fork different
 
@@ -156,6 +164,17 @@ docs/install.md                    install, update, troubleshooting notes
 
 ## Known limitations
 
+- **Cross-skill references keep upstream's namespace prefix.** 41 references
+  across 11 skill files read `superpowers:writing-plans` and so on. DSH's
+  `isSkillName` rejects a colon, so `skill({name: "superpowers:writing-plans"})`
+  fails with `invalid skill name`. This fork deliberately does **not** rewrite
+  them: doing so means editing vendored skill bodies, which is exactly the kind
+  of silent divergence that makes a fork untrustworthy on the next re-vendor.
+  Instead the rule is documented in
+  [`references/dsh-tools.md`](references/dsh-tools.md) — strip the prefix, load
+  the bare name — so the agent resolves them without the files diverging. A
+  wrapper script on `PATH` named `superpowers:writing-plans` would also absorb
+  the colon, if you prefer a mechanism to a convention.
 - **No worktree tool.** DSH has no managed git integration, so
   `using-git-worktrees` takes its `git worktree` fallback path. Under the
   `workspace-write` sandbox, create worktrees *inside* the workspace.

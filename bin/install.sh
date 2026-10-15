@@ -21,9 +21,9 @@
 #   --no-skills        Skip installing skills
 #   --no-bootstrap     Skip writing the AGENTS.md bootstrap block
 #   --dry-run          Print what would change; write nothing
+#   --uninstall        Remove the installed skills and the bootstrap block
 #   -h, --help         This help
-#
-# Uninstall: bin/install.sh --uninstall [same options]
+# ---
 set -euo pipefail
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -45,10 +45,14 @@ dry_run=0
 uninstall=0
 
 die() { printf 'install: %s\n' "$1" >&2; exit 1; }
+warn() { printf 'install: warning: %s\n' "$1" >&2; }
 note() { printf '%s\n' "$1"; }
 
+# Print the header comment as help. Bounded by the header's own markers rather
+# than hard-coded line numbers, so editing the comment cannot silently truncate
+# or leak the script body into --help.
 usage() {
-  sed -n '2,30p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  awk 'NR > 1 && /^# ---/ { exit } NR > 1 { sub(/^# ?/, ""); print }' "${BASH_SOURCE[0]}"
 }
 
 while [ "$#" -gt 0 ]; do
@@ -123,31 +127,142 @@ uninstall_skills() {
 
 # --- bootstrap ---------------------------------------------------------------
 
-# Replace our marked block in $1, or append it if absent. Content on stdin.
-write_bootstrap_block() {
-  local file="$1" block_file="$2" tmp
-  mkdir -p "$(dirname "$file")"
-  tmp="$(mktemp "${file}.XXXXXX")"
+# Resolve $1 to the path that should actually be written, following a symlink.
+#
+# The atomic `mv` below replaces a directory entry. If AGENTS.md is a symlink
+# (a common dotfiles arrangement), writing to the link path would replace the
+# link with a regular file and silently stop managing the user's real file.
+#
+# Only the FINAL component is resolved, via readlink. Canonicalising the parent
+# with `cd -P` would also rewrite the directory itself (/var -> /private/var on
+# macOS), landing the write next to the symlink instead of at its target.
+resolve_write_target() {
+  local file="$1" dir link hops=0
+  while [ -L "$file" ] && [ "$hops" -lt 40 ]; do
+    dir="$(dirname "$file")"
+    link="$(readlink "$file")" || break
+    case "$link" in
+      /*) file="$link" ;;
+      *)  file="${dir}/${link}" ;;
+    esac
+    hops=$((hops + 1))
+  done
+  printf '%s\n' "$file"
+}
 
-  if [ -f "$file" ]; then
-    # Drop any previous block (and the blank line we add before it), keeping
-    # everything the user wrote. Both the current and the pre-rename markers
-    # are stripped, so a `superpowers-dsh` install upgrades cleanly in place.
-    awk -v b="$BOOTSTRAP_BEGIN" -v e="$BOOTSTRAP_END" \
-        -v b2="$BOOTSTRAP_LEGACY_BEGIN" -v e2="$BOOTSTRAP_LEGACY_END" '
-      index($0, b) || index($0, b2) { skip = 1; next }
-      index($0, e) || index($0, e2) { skip = 0; next }
-      !skip { print }
-    ' "$file" > "$tmp"
+# Remove our managed blocks from stdin, printing the remainder.
+#
+# Both the current and the pre-rename markers are handled so an install from
+# before the rename is replaced in place rather than duplicated.
+#
+# Markers are matched as WHOLE LINES, after stripping leading whitespace. A
+# substring match is wrong here: the pre-rename block's own body contains the
+# comment "Managed by superpowers-dsh ...", which contains today's marker text
+# as a substring, so `index()` would treat that comment as a BEGIN and corrupt
+# the block.
+#
+# Safety rule, in two passes:
+#   1. Count BEGIN and END markers (whole lines). If they do not pair up, the
+#      file has been hand-edited or truncated, and we cannot know where the
+#      block ends. Reproduce the file byte-for-byte and let the caller decide,
+#      rather than guessing and swallowing user content.
+#   2. Only with paired markers, remove the blocks.
+#
+# The state machine is written with if/else rather than `pattern { next }`
+# rules on purpose. On macOS's /usr/bin/awk (onetrueawk 20200816) a
+# `skip { print; next }` rule following a `next` rule prints lines it was
+# supposed to swallow, which silently left a replaced block's body in place.
+# The if/else form is identical on that awk and on gawk/mawk.
+strip_managed_blocks() {
+  awk -v b="$BOOTSTRAP_BEGIN" -v e="$BOOTSTRAP_END" \
+      -v b2="$BOOTSTRAP_LEGACY_BEGIN" -v e2="$BOOTSTRAP_LEGACY_END" '
+    function trimmed(l) { sub(/^[ \t]+/, "", l); sub(/[ \t\r]+$/, "", l); return l }
+    {
+      raw[NR] = $0
+      line = trimmed($0)
+      if (line == b || line == b2) opens++
+      else if (line == e || line == e2) closes++
+    }
+    END {
+      if (opens != closes) {
+        unbalanced = 1
+        for (i = 1; i <= NR; i++) print raw[i]
+        exit 0
+      }
+      for (i = 1; i <= NR; i++) {
+        line = trimmed(raw[i])
+        if (!skip && (line == b || line == b2)) skip = 1
+        else if (skip && (line == e || line == e2)) skip = 0
+        else if (!skip) print raw[i]
+      }
+    }
+  '
+}
+
+# True when stdin holds a balanced pair of our managed markers.
+has_balanced_block() {
+  awk -v b="$BOOTSTRAP_BEGIN" -v e="$BOOTSTRAP_END" \
+      -v b2="$BOOTSTRAP_LEGACY_BEGIN" -v e2="$BOOTSTRAP_LEGACY_END" '
+    function trimmed(l) { sub(/^[ \t]+/, "", l); sub(/[ \t\r]+$/, "", l); return l }
+    {
+      line = trimmed($0)
+      if (line == b || line == b2) opens++
+      else if (line == e || line == e2) closes++
+    }
+    END { exit (opens > 0 && opens == closes) ? 0 : 1 }
+  '
+}
+
+# Delete a trailing run of blank lines, then add exactly one separator newline
+# if any user content remains. Callers use this to normalise the join between
+# user content and our block, so repeated installs and uninstalls do not drift.
+normalise_trailing_blanks() {
+  awk '
+    { lines[NR] = $0 }
+    END {
+      last = NR
+      while (last > 0 && lines[last] ~ /^[[:space:]]*$/) last--
+      for (i = 1; i <= last; i++) print lines[i]
+    }
+  '
+}
+
+# Replace our marked block in $1, or append it if absent. Block content in $2.
+write_bootstrap_block() {
+  local file="$1" block_file="$2"
+  local target tmp
+  local had_block=0
+
+  target="$(resolve_write_target "$file")"
+  mkdir -p "$(dirname "$target")"
+
+  # mktemp creates the staged file 0600; the final mode is set explicitly below
+  # so a world-readable temp never becomes the user's instruction file.
+  tmp="$(mktemp "${target}.XXXXXX")" || return 1
+
+  if [ -f "$target" ]; then
+    if has_balanced_block < "$target"; then
+      # A complete block we can safely replace.
+      had_block=1
+    elif grep -qF "$BOOTSTRAP_BEGIN" "$target" || grep -qF "$BOOTSTRAP_LEGACY_BEGIN" "$target"; then
+      # Markers present but not paired: hand-edited or truncated. We cannot
+      # tell where the block ends, so leave the file exactly as-is and append
+      # our block after it. Losing user content to a guess is far worse than
+      # leaving a stale marker line in place.
+      warn "bootstrap: ${target} has an unpaired marker; leaving its content untouched"
+    fi
+    # Strip our blocks, drop the trailing run of blank lines, then re-add
+    # exactly one separator newline — but only when user content remains.
+    # One pipeline, so there is no intermediate copy to get out of step with
+    # the staged file.
+    {
+      strip_managed_blocks < "$target" | normalise_trailing_blanks
+    } > "$tmp"
   fi
 
-  # Trim trailing blank lines so repeated installs do not accumulate them.
   if [ -s "$tmp" ]; then
-    awk 'BEGIN{n=0} {lines[NR]=$0} END{last=NR; while(last>0 && lines[last] ~ /^[[:space:]]*$/) last--; for(i=1;i<=last;i++) print lines[i]}' "$tmp" > "${tmp}.trim"
-    mv "${tmp}.trim" "$tmp"
     printf '\n' >> "$tmp"
   fi
-
   cat "$block_file" >> "$tmp"
 
   # Drop a legacy block that predates the self-managed markers. Without this,
@@ -155,7 +270,29 @@ write_bootstrap_block() {
   # body into the instruction file, which then ships to every session.
   strip_legacy_bootstrap "$tmp"
 
-  mv "$tmp" "$file"
+  set_file_mode "$tmp" "$target"
+  mv "$tmp" "$target" || { rm -f "$tmp"; return 1; }
+
+  if [ "$had_block" -eq 1 ]; then
+    note "bootstrap: replaced the existing block in ${target}"
+  fi
+  return 0
+}
+
+# Give $1 the mode of $2, or 0600 when $2 does not exist.
+#
+# Replacing a file via mv discards the original mode, which would silently make
+# a 0600 AGENTS.md world-readable. Stat syntax differs between BSD and GNU, so
+# try both and fall back to a private mode rather than guessing.
+set_file_mode() {
+  local new="$1" existing="$2" mode=""
+  if [ -e "$existing" ]; then
+    mode="$(stat -f '%Lp' "$existing" 2>/dev/null || stat -c '%a' "$existing" 2>/dev/null || true)"
+  fi
+  case "$mode" in
+    [0-7][0-7][0-7]|[0-7][0-7][0-7][0-7]) chmod "$mode" "$new" 2>/dev/null || true ;;
+    *) chmod 600 "$new" 2>/dev/null || true ;;
+  esac
 }
 
 # Remove a pre-markers Superpowers bootstrap block, if the file opens with one.
@@ -214,11 +351,13 @@ install_bootstrap() {
 }
 
 uninstall_bootstrap() {
-  if [ ! -f "$agents_md" ]; then
+  local target
+  target="$(resolve_write_target "$agents_md")"
+  if [ ! -f "$target" ]; then
     note "bootstrap: ${agents_md} does not exist"
     return 0
   fi
-  if ! grep -qF "$BOOTSTRAP_BEGIN" "$agents_md" && ! grep -qF "$BOOTSTRAP_LEGACY_BEGIN" "$agents_md"; then
+  if ! grep -qF "$BOOTSTRAP_BEGIN" "$target" && ! grep -qF "$BOOTSTRAP_LEGACY_BEGIN" "$target"; then
     note "bootstrap: no self-managed block in ${agents_md}"
     return 0
   fi
@@ -226,16 +365,31 @@ uninstall_bootstrap() {
     note "would remove the bootstrap block from ${agents_md}"
     return 0
   fi
-  local tmp
-  tmp="$(mktemp "${agents_md}.XXXXXX")"
-  awk -v b="$BOOTSTRAP_BEGIN" -v e="$BOOTSTRAP_END" \
-      -v b2="$BOOTSTRAP_LEGACY_BEGIN" -v e2="$BOOTSTRAP_LEGACY_END" '
-    index($0, b) || index($0, b2) { skip = 1; next }
-    index($0, e) || index($0, e2) { skip = 0; next }
-    !skip { print }
-  ' "$agents_md" > "$tmp"
-  if [ -s "$tmp" ]; then mv "$tmp" "$agents_md"; else rm -f "$tmp" "$agents_md"; fi
-  note "bootstrap: removed the block from ${agents_md}"
+
+  local tmp body
+  tmp="$(mktemp "${target}.XXXXXX")" || return 1
+  body="$(mktemp "${target}.body.XXXXXX")" || { rm -f "$tmp"; return 1; }
+
+  # Strip the block, then normalise the join so install/uninstall round-trips
+  # are a true no-op instead of accumulating a blank line per cycle.
+  strip_managed_blocks < "$target" > "$tmp"
+  normalise_trailing_blanks < "$tmp" > "$body"
+
+  if [ -s "$body" ]; then
+    # Keep the user's content and its original permissions.
+    cp "$body" "$tmp"
+    set_file_mode "$tmp" "$target"
+    mv "$tmp" "$target" || { rm -f "$tmp" "$body"; return 1; }
+    note "bootstrap: removed the block from ${agents_md}"
+  else
+    # The block was the file's only content, leaving nothing behind. Remove the
+    # file itself, but only after confirming there is genuinely no user content
+    # — an orphaned BEGIN that we refuse to swallow would leave text here.
+    chmod u+w "$target" 2>/dev/null || true
+    rm -f "$target" || { rm -f "$tmp" "$body"; return 1; }
+    note "bootstrap: removed ${agents_md} (it held nothing else)"
+  fi
+  rm -f "$tmp" "$body"
 }
 
 # --- run ---------------------------------------------------------------------

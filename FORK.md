@@ -38,7 +38,7 @@ upstream is small and auditable:
 | Change | Where |
 | --- | --- |
 | Copy skills into DSH's native skill roots | `bin/install.sh` |
-| Register DSH in the skill's platform-adaptation list (one line) | `lib/patch-using-superpowers.mjs` |
+| Rewrite the skill's platform-adaptation list to name DSH only, and drop the other harnesses' reference files | `lib/patch-using-superpowers.mjs` |
 | Generate the session bootstrap for `$DSH_HOME/AGENTS.md` | `lib/session-start.sh` |
 | Document DSH's tools, sandbox, and session storage | `references/dsh-tools.md` |
 

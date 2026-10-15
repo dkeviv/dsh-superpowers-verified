@@ -31,6 +31,38 @@ Load a skill with the `skill` tool:
   still installed but will not load — if a skill's contents look stale, check
   for a duplicate in a higher-precedence root.
 
+### Skill names carry no namespace prefix
+
+**DSH registers and resolves skills by bare name. `isSkillName` rejects a colon
+outright, so `skill({name: "superpowers:brainstorming"})` fails with
+`invalid skill name`.**
+
+Upstream's skills cross-reference each other the Claude Code way — 41
+references such as `superpowers:writing-plans` and
+`superpowers:test-driven-development` spread across 11 files. When you hit one,
+**strip the `superpowers:` prefix and load the bare name**:
+
+| Referenced as | Load with |
+| --- | --- |
+| `superpowers:writing-plans` | `writing-plans` |
+| `superpowers:test-driven-development` | `test-driven-development` |
+| `superpowers:subagent-driven-development` | `subagent-driven-development` |
+| `superpowers:finishing-a-development-branch` | `finishing-a-development-branch` |
+
+The rule is uniform: everything before the colon is a namespace, and DSH has
+exactly one. If a name does not appear in your session catalog at all, say so
+rather than guessing at a nearby name.
+
+### Only the DSH reference applies
+
+`using-superpowers` also ships `references/claude-code-tools.md`, kept because
+an upstream cross-reference names it. DSH is **not** Claude Code. That file
+opens by explaining that "skills speak its vocabulary (`Agent` for a subagent
+dispatch, todos, `Skill`)" — none of which are DSH's names — and its actual
+guidance is Claude-specific nested-subagent depth tuning via
+`CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`, which does not exist here. Read
+`references/dsh-tools.md` — this file — and ignore `claude-code-tools.md`.
+
 ## Bootstrap
 
 DSH has no `SessionStart` hook for skills, so Superpowers' bootstrap lives in
@@ -76,6 +108,20 @@ Two behaviors that bite:
   false` when your very next action depends on the result, or keep doing
   independent work and collect the result later with `job_output`. Never
   busy-poll a running subagent.
+
+### You *can* message a live subagent
+
+`subagent-driven-development` branches on whether your harness can send another
+message to a live subagent — the same conversation rather than a fresh dispatch
+— and prefers resuming the existing implementer during the early fix rounds.
+**DSH supports this**: pass the child's id from `subagent` to `send_message`,
+and it is delivered at the child's next step. The child keeps its context, which
+is the point of resuming rather than re-dispatching.
+
+So take the "resume the implementer" path for early fix rounds, and use a fresh
+`subagent` dispatch when the skill calls for a clean context or a more capable
+model. `send_message` returns delivery confirmation, not the child's answer — to
+read the answer, wait for the child to settle and then read it as usual.
 
 ## Background jobs
 
