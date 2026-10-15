@@ -55,6 +55,43 @@ block is written. Content after the legacy block is kept.
 This check is deliberately narrow. A file that merely mentions the phrase
 further down is not modified beyond the normal append.
 
+## Coexisting with the `skills` CLI
+
+`npx skills add obra/superpowers` and this installer both write to the same
+skill root, and the `skills` CLI offers no hook to run after it writes. So if
+you update Superpowers through the CLI, upstream's files replace this fork's
+adaptation: the platform list reverts to all six harnesses, `references/dsh-tools.md`
+is removed, and the other harnesses' reference files return. Measured, not
+assumed — `npx skills update -g -y` does exactly that to a patched install.
+
+Two ways to run this safely:
+
+**Preferred — let the CLI update the other skills, then repair.** `./bin/install.sh`
+detects the clobber, warns, and reapplies the adaptation:
+
+```bash
+npx skills update -g -y     # touches the other skills, strips our patch
+./bin/install.sh            # warns "lost its DSH adaptation; repairing"
+```
+
+**Or check first, without writing**, for a hook or a health check:
+
+```bash
+./bin/install.sh --check
+# needs repair: ~/.agents/skills/using-superpowers is missing the DSH adaptation
+# cause: something reinstalled upstream over it, typically `npx skills update`
+# fix:   ./bin/install.sh --target ~/.agents/skills
+```
+
+`--check` exits 1 when a repair is needed and 0 when the adaptation is intact,
+so it can gate a commit hook or a scheduled check. `bin/verify.sh` reports the
+same condition and includes the fix in its failure message.
+
+Nothing is lost by the clobber beyond the adaptation itself: the skill bodies
+are all upstream content, and the repair re-copies them from the pinned
+snapshot. The bootstrap in `AGENTS.md` is unaffected, because the CLI does not
+manage that file.
+
 ## Verifying an install
 
 `bin/verify.sh` audits a live install against DSH's own skill catalog rather

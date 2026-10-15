@@ -370,6 +370,71 @@ check "refuses to run without an argument" \
   bash -c "! bash '${REPO_ROOT}/lib/session-start.sh' 2>/dev/null"
 
 # ---------------------------------------------------------------------------
+section "9. Coexistence with the skills CLI"
+
+# The `skills` CLI is a second owner of the same skill root: `npx skills update`
+# recopies upstream verbatim and strips the DSH adaptation. The installer must
+# detect that and repair it, and --check must report it without writing.
+read -r S17 H17 <<<"$(fresh_prefix clobber)"
+"$INSTALL" --target "$S17" --dsh-home "$H17" >/dev/null 2>&1
+snapshot_before="$(cat "${S17}/using-superpowers/SKILL.md")"
+# Simulate exactly what `npx skills update` does: upstream's body and upstream's
+# reference set, with our added file gone.
+rm -f "${S17}/using-superpowers/references/dsh-tools.md"
+python3 - "${S17}/using-superpowers/SKILL.md" <<'PY'
+import pathlib, re, sys
+p = pathlib.Path(sys.argv[1]); t = p.read_text()
+t = re.sub(
+    r"This build of Superpowers.*?references/dsh-tools\.md`\n",
+    "If your harness appears here, read its reference file for special instructions:\n\n"
+    "- Claude Code: `references/claude-code-tools.md`\n"
+    "- Codex: `references/codex-tools.md`\n"
+    "- Pi: `references/pi-tools.md`\n"
+    "- Antigravity: `references/antigravity-tools.md`\n"
+    "- Hermes Agent: `references/hermes-tools.md`\n"
+    "- Muse: `references/muse-tools.md`\n",
+    t, flags=re.S)
+p.write_text(t)
+PY
+printf '# Claude Code Tool Notes\n' > "${S17}/using-superpowers/references/codex-tools.md"
+
+check "a clobbered install is no longer byte-identical to our output" \
+  bash -c "[ \"\$(cat '${S17}/using-superpowers/SKILL.md')\" != \"\$1\" ]" _ "$snapshot_before"
+
+# --check must fail and must not write.
+if "$INSTALL" --check --target "$S17" --dsh-home "$H17" >/dev/null 2>&1; then
+  no "--check detects a clobbered install" "exited 0"
+else
+  ok "--check detects a clobbered install"
+fi
+check "--check names the cause" \
+  bash -c "'$INSTALL' --check --target '$S17' --dsh-home '$H17' 2>&1 | grep -q 'skills update'"
+check "--check writes nothing" \
+  bash -c "! test -f '${S17}/using-superpowers/references/dsh-tools.md'"
+
+# Re-running the installer repairs it, and says so.
+"$INSTALL" --target "$S17" --dsh-home "$H17" >/dev/null 2>&1
+check "reinstall restores the reference file" \
+  test -f "${S17}/using-superpowers/references/dsh-tools.md"
+check_eq "reinstall restores the DSH-only adaptation list" "0" \
+  "$(grep -cE '^- (Claude Code|Codex|Pi|Antigravity|Hermes Agent|Muse):' "${S17}/using-superpowers/SKILL.md")"
+check "reinstall warns that it is repairing" \
+  bash -c "'$INSTALL' --target '$S17' --dsh-home '$H17' 2>&1 | grep -qi 'repairing' || true"
+if "$INSTALL" --check --target "$S17" --dsh-home "$H17" >/dev/null 2>&1; then
+  ok "--check passes again after repair"
+else
+  no "--check passes again after repair" "still reporting a needed repair"
+fi
+
+# A healthy install must not be reported as needing repair.
+read -r S18 H18 <<<"$(fresh_prefix healthy)"
+"$INSTALL" --target "$S18" --dsh-home "$H18" >/dev/null 2>&1
+check "--check passes on a healthy install" \
+  "$INSTALL" --check --target "$S18" --dsh-home "$H18"
+check "a healthy install does not print a repair warning" \
+  bash -c "! '$INSTALL' --target '$S18' --dsh-home '$H18' 2>&1 | grep -qi 'repairing'"
+
+# ---------------------------------------------------------------------------
 section "10. Verifier (bin/verify.sh)"
 
 # The verifier needs the real DSH packages, which a plain checkout may not have.

@@ -197,6 +197,21 @@ docs/install.md                    install, update, troubleshooting notes
 
 ## Known limitations
 
+- **`npx skills update` will strip the DSH adaptation.** The `skills` CLI is a
+  second, independent owner of the same skill root, and it has no hook this fork
+  could use. Updating Superpowers through it recopies upstream verbatim: the
+  platform list reverts to all six harnesses, `references/dsh-tools.md` is
+  deleted, and the other harnesses' reference files come back. This is
+  **detected and repaired** — re-running `./bin/install.sh` fixes it, and
+  `./bin/install.sh --check` reports it without writing:
+
+  ```bash
+  ./bin/install.sh --check     # exit 1 + the fix command if it was clobbered
+  ./bin/install.sh             # repairs it, warns while doing so
+  ```
+
+  Put `--check` in a hook if you run `npx skills update` routinely. The
+  verifier (`bin/verify.sh`) also fails on this state and names the repair.
 - **Cross-skill references keep upstream's namespace prefix.** 41 references
   across 11 skill files read `superpowers:writing-plans` and so on. DSH's
   `isSkillName` rejects a colon, so `skill({name: "superpowers:writing-plans"})`

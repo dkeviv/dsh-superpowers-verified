@@ -13,6 +13,11 @@
 # Both steps are idempotent: re-running replaces what this installer owns and
 # leaves everything else in the target files alone.
 #
+# The `skills` CLI is a second owner of the same skill root. `npx skills update`
+# recopies upstream verbatim and strips this fork's DSH adaptation. Re-running
+# this installer detects that and repairs it; --check reports it without
+# writing, for use in a hook or a health check.
+#
 # Usage: bin/install.sh [options]
 #
 #   --target <dir>     Global skill root (default: $DSH_AGENTS_HOME/skills or
@@ -21,6 +26,7 @@
 #   --no-skills        Skip installing skills
 #   --no-bootstrap     Skip writing the AGENTS.md bootstrap block
 #   --dry-run          Print what would change; write nothing
+#   --check            Report whether a repair is needed; write nothing
 #   --uninstall        Remove the installed skills and the bootstrap block
 #   -h, --help         This help
 # ---
@@ -43,6 +49,7 @@ do_skills=1
 do_bootstrap=1
 dry_run=0
 uninstall=0
+check_only=0
 
 die() { printf 'install: %s\n' "$1" >&2; exit 1; }
 warn() { printf 'install: warning: %s\n' "$1" >&2; }
@@ -63,6 +70,7 @@ while [ "$#" -gt 0 ]; do
     --no-bootstrap)  do_bootstrap=0; shift ;;
     --dry-run)       dry_run=1; shift ;;
     --uninstall)     uninstall=1; shift ;;
+    --check)         check_only=1; shift ;;
     -h|--help)       usage; exit 0 ;;
     *)               die "unknown option: $1 (try --help)" ;;
   esac
@@ -83,8 +91,31 @@ agents_md="${dsh_home}/AGENTS.md"
 
 # --- skill installation ------------------------------------------------------
 
+# Is the installed `using-superpowers` missing our DSH adaptation?
+#
+# The `skills` CLI is a second, independent owner of the same skill root. When
+# it updates Superpowers it recopies upstream's body verbatim, which silently
+# removes the DSH platform list, deletes `references/dsh-tools.md`, and restores
+# the other harnesses' reference files. The CLI has no hook we could use, so the
+# repair has to be detectable and cheap: every installer run checks for this and
+# reapplies the adaptation.
+needs_repair() {
+  local dir="${target_skills}/using-superpowers"
+  [ -d "$dir" ] || return 1
+  [ -f "${dir}/SKILL.md" ] || return 1
+  # Upstream verbatim means our marker and reference file are both absent.
+  [ ! -f "${dir}/references/dsh-tools.md" ] && return 0
+  ! grep -qF -- '- DeepSeek Harness (DSH): `references/dsh-tools.md`' "${dir}/SKILL.md" && return 0
+  return 1
+}
+
 install_skills() {
   local count=0 skill name
+  if [ "$dry_run" -eq 1 ]; then
+    needs_repair && warn "--target is missing the DSH adaptation (the skills CLI overwrote it); this run would repair it"
+  elif needs_repair; then
+    warn "the installed Superpowers lost its DSH adaptation (usually \`npx skills update\`); repairing"
+  fi
   for skill in "$VENDOR_SKILLS"/*/; do
     [ -d "$skill" ] || continue
     name="$(basename "$skill")"
@@ -400,6 +431,17 @@ uninstall_bootstrap() {
 }
 
 # --- run ---------------------------------------------------------------------
+
+if [ "$check_only" -eq 1 ]; then
+  if needs_repair; then
+    note "needs repair: ${target_skills}/using-superpowers is missing the DSH adaptation"
+    note "cause: something reinstalled upstream over it, typically \`npx skills update\`"
+    note "fix:   $0 --target ${target_skills}"
+    exit 1
+  fi
+  note "ok: the DSH adaptation is intact in ${target_skills}"
+  exit 0
+fi
 
 if [ "$uninstall" -eq 1 ]; then
   [ "$dry_run" -eq 1 ] && note "--- dry run ---"

@@ -242,7 +242,7 @@ if [ -f "${skill_dir}/SKILL.md" ]; then
   if grep -qF -- '- DeepSeek Harness (DSH): `references/dsh-tools.md`' "${skill_dir}/SKILL.md"; then
     record ok "adaptation list names DSH" "using-superpowers points at the DSH reference"
   else
-    record fail "adaptation list names DSH" "using-superpowers does not point at references/dsh-tools.md"
+    record fail "adaptation list names DSH" "using-superpowers does not point at references/dsh-tools.md; if `npx skills update` overwrote it, run bin/install.sh to repair"
   fi
   others="$(grep -cE '^- (Claude Code|Codex|Pi|Antigravity|Hermes Agent|Muse):' "${skill_dir}/SKILL.md" || true)"
   if [ "$others" -eq 0 ]; then
