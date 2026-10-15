@@ -325,7 +325,11 @@ printf 'secret\n' > "${H14}/AGENTS.md"
 chmod 600 "${H14}/AGENTS.md"
 "$INSTALL" --target "$S14" --dsh-home "$H14" >/dev/null 2>&1
 mode="$(stat -f '%Lp' "${H14}/AGENTS.md" 2>/dev/null || stat -c '%a' "${H14}/AGENTS.md" 2>/dev/null)"
-check_eq "a 0600 AGENTS.md stays 0600" "600" "$mode"
+if [ "$mode" = "600" ]; then
+  ok "a 0600 AGENTS.md stays 0600"
+else
+  no "a 0600 AGENTS.md stays 0600" "expected [600], got [$mode] (stat: $(uname -s), file: $(ls -l "${H14}/AGENTS.md"))"
+fi
 check "the block was still written" grep -qF 'BEGIN dsh-superpowers-verified' "${H14}/AGENTS.md"
 
 # A symlinked AGENTS.md must stay a symlink and be updated through it.
@@ -383,10 +387,16 @@ else
   if "$VERIFY" --target "$SV" --dsh-home "$HV" >/dev/null 2>&1; then
     ok "passes on a clean install"
     verify_available=1
-  elif "$VERIFY" --target "$SV" --dsh-home "$HV" 2>&1 | grep -q 'cannot find the DSH packages'; then
-    printf '  \033[33m-\033[0m %s\n' "skipped: DSH packages not present on this machine"
   else
-    no "passes on a clean install" "run bin/verify.sh directly for detail"
+    # Exit 2 is the verifier's "environment problem" status: it could not find
+    # the DSH packages. Skip visibly rather than passing vacuously.
+    "$VERIFY" --target "$SV" --dsh-home "$HV" >/dev/null 2>&1
+    verify_rc=$?
+    if [ "$verify_rc" -eq 2 ]; then
+      printf '  \033[33m-\033[0m %s\n' "skipped: DSH packages not available on this machine"
+    else
+      no "passes on a clean install" "run bin/verify.sh directly for detail"
+    fi
   fi
 
   if [ "$verify_available" -eq 1 ]; then

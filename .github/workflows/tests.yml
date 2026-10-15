@@ -46,11 +46,13 @@ jobs:
         continue-on-error: true
         run: |
           set -euo pipefail
-          npm install --no-save --silent @deepseek-ai/dsh >/dev/null 2>&1 || exit 0
-          test -d "$PWD/node_modules/@deepseek-ai/dsh-skill" || exit 0
+          npm install --no-save @deepseek-ai/dsh 2>&1 | tail -5
+          ls -d node_modules/@deepseek-ai/dsh-skill 2>/dev/null || { echo "SKIP: dsh-skill not present after install"; exit 0; }
           prefix="$(mktemp -d)"
           ./bin/install.sh --target "$prefix/skills" --dsh-home "$prefix/dsh" >/dev/null
           ./bin/verify.sh --modules "$PWD/node_modules" --target "$prefix/skills" --dsh-home "$prefix/dsh"
+          echo "--- modes after install ---"
+          stat -c '%a %n' "$prefix/dsh/AGENTS.md" 2>/dev/null || stat -f '%Lp %N' "$prefix/dsh/AGENTS.md"
 
       - name: Shell and JS syntax check
         run: |
