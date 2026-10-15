@@ -22,7 +22,27 @@
 # ---
 set -euo pipefail
 
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Resolve this script's real path before deriving REPO_ROOT. Run through npm's
+# .bin symlink, a plain `dirname $0` resolves to <prefix>/.bin and REPO_ROOT
+# would lose vendor/ and references/. readlink -f is not portable to macOS, so
+# walk the symlink chain by hand.
+resolve_self() {
+  local path="$1" dir link hops=0
+  while [ -L "$path" ] && [ "$hops" -lt 40 ]; do
+    dir="$(cd -P "$(dirname "$path")" && pwd)"
+    link="$(readlink "$path")"
+    case "$link" in
+      /*) path="$link" ;;
+      *)  path="${dir}/${link}" ;;
+    esac
+    hops=$((hops + 1))
+  done
+  dir="$(cd -P "$(dirname "$path")" && pwd)"
+  printf '%s\n' "${dir}/$(basename "$path")"
+}
+
+readonly SELF="$(resolve_self "${BASH_SOURCE[0]}")"
+readonly SCRIPT_DIR="$(dirname "$SELF")"
 readonly REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 readonly BOOTSTRAP_BEGIN="<!-- BEGIN dsh-superpowers-verified bootstrap -->"
 readonly BOOTSTRAP_END="<!-- END dsh-superpowers-verified bootstrap -->"

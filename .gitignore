@@ -6,6 +6,9 @@
 *.trim
 *.stripped
 
+# npm pack artifacts
+*.tgz
+
 # Node
 node_modules/
 npm-debug.log*

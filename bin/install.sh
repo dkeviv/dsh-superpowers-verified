@@ -32,7 +32,29 @@
 # ---
 set -euo pipefail
 
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Resolve $1 to its real on-disk path, following a chain of symlinks.
+#
+# This matters when the script is run through a symlink: npm's .bin shim points
+# at bin/install.sh, so `dirname $0` is <prefix>/.bin and REPO_ROOT would land
+# on <prefix>/ instead of the package directory, losing vendor/ and
+# references/. `readlink -f` is not portable to macOS, so walk the chain by hand.
+resolve_self() {
+  local path="$1" dir link hops=0
+  while [ -L "$path" ] && [ "$hops" -lt 40 ]; do
+    dir="$(cd -P "$(dirname "$path")" && pwd)"
+    link="$(readlink "$path")"
+    case "$link" in
+      /*) path="$link" ;;
+      *)  path="${dir}/${link}" ;;
+    esac
+    hops=$((hops + 1))
+  done
+  dir="$(cd -P "$(dirname "$path")" && pwd)"
+  printf '%s\n' "${dir}/$(basename "$path")"
+}
+
+readonly SELF="$(resolve_self "${BASH_SOURCE[0]}")"
+readonly SCRIPT_DIR="$(dirname "$SELF")"
 readonly REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 readonly VENDOR_SKILLS="${REPO_ROOT}/vendor/superpowers/skills"
 readonly BOOTSTRAP_BEGIN="<!-- BEGIN dsh-superpowers-verified bootstrap -->"
@@ -433,6 +455,11 @@ uninstall_bootstrap() {
 # --- run ---------------------------------------------------------------------
 
 if [ "$check_only" -eq 1 ]; then
+  if [ ! -d "${target_skills}/using-superpowers" ]; then
+    note "not installed: ${target_skills}/using-superpowers does not exist"
+    note "fix:   $0 --target ${target_skills}"
+    exit 1
+  fi
   if needs_repair; then
     note "needs repair: ${target_skills}/using-superpowers is missing the DSH adaptation"
     note "cause: something reinstalled upstream over it, typically \`npx skills update\`"

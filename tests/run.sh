@@ -426,6 +426,18 @@ else
   no "--check passes again after repair" "still reporting a needed repair"
 fi
 
+# --check on a target with nothing installed must fail, not report "intact" —
+# otherwise it is useless as a hook or a health check.
+read -r S21 H21 <<<"$(fresh_prefix check_empty)"
+mkdir -p "$S21"
+if "$INSTALL" --check --target "$S21" --dsh-home "$H21" >/dev/null 2>&1; then
+  no "--check fails when nothing is installed" "exited 0"
+else
+  ok "--check fails when nothing is installed"
+fi
+check "--check says 'not installed' rather than 'needs repair'" \
+  bash -c "'$INSTALL' --check --target '$S21' --dsh-home '$H21' 2>&1 | grep -q 'not installed'"
+
 # A healthy install must not be reported as needing repair.
 read -r S18 H18 <<<"$(fresh_prefix healthy)"
 "$INSTALL" --target "$S18" --dsh-home "$H18" >/dev/null 2>&1
@@ -521,7 +533,52 @@ PY
 fi
 
 # ---------------------------------------------------------------------------
-section "11. Patch script robustness"
+section "11. Invoked through a symlink (npm bin)"
+
+# Regression: npm installs a .bin shim that symlinks to bin/install.sh. Resolving
+# REPO_ROOT from `dirname $0` then lands on <prefix>/.bin/.. and loses vendor/,
+# so the installed bin failed outright. Every earlier test invoked the script by
+# its real path, which is why this shipped undetected.
+read -r S19 H19 <<<"$(fresh_prefix symlink_bin)"
+mkdir -p "$S19/../.bin"
+ln -s "${REPO_ROOT}/bin/install.sh" "$S19/../.bin/dsh-superpowers-verified"
+ln -s "${REPO_ROOT}/bin/verify.sh" "$S19/../.bin/dsh-superpowers-verified-verify"
+
+if "$S19/../.bin/dsh-superpowers-verified" --target "$S19" --dsh-home "$H19" >/dev/null 2>&1; then
+  ok "installer runs through a .bin symlink"
+else
+  no "installer runs through a .bin symlink" "failed to find vendor/ via the symlink"
+fi
+check_eq "symlinked installer still installs all skills" "15" \
+  "$(find "$S19" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')"
+check "symlinked installer still writes the bootstrap" \
+  grep -qF 'BEGIN dsh-superpowers-verified bootstrap' "${H19}/AGENTS.md"
+check "symlinked installer --check works" \
+  "$S19/../.bin/dsh-superpowers-verified" --check --target "$S19" --dsh-home "$H19"
+if "$S19/../.bin/dsh-superpowers-verified-verify" --target "$S19" --dsh-home "$H19" >/dev/null 2>&1; then
+  ok "verifier runs through a .bin symlink"
+else
+  rc=$?
+  if [ "$rc" -eq 2 ]; then
+    printf '  \033[33m-\033[0m %s\n' "skipped: verifier needs DSH packages"
+  else
+    no "verifier runs through a .bin symlink" "exit $rc"
+  fi
+fi
+
+# A chain of two symlinks must also resolve.
+read -r S20 H20 <<<"$(fresh_prefix symlink_chain)"
+mkdir -p "$S20/../.chain"
+ln -s "${REPO_ROOT}/bin/install.sh" "$S20/../.chain/step1"
+ln -s "$S20/../.chain/step1" "$S20/../.chain/step2"
+if "$S20/../.chain/step2" --target "$S20" --dsh-home "$H20" >/dev/null 2>&1; then
+  ok "installer resolves a two-link symlink chain"
+else
+  no "installer resolves a two-link symlink chain" "REPO_ROOT wrong after two hops"
+fi
+
+# ---------------------------------------------------------------------------
+section "12. Patch script robustness"
 
 check "patch script fails on a missing skill dir" \
   bash -c "! node '${REPO_ROOT}/lib/patch-using-superpowers.mjs' '${WORK}/nope' 2>/dev/null"
