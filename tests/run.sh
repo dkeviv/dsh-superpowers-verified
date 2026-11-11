@@ -174,6 +174,15 @@ read -r S4 H4 <<<"$(fresh_prefix dry_run)"
 check "--dry-run writes no skills" test ! -d "${S4}/brainstorming"
 check "--dry-run writes no AGENTS.md" test ! -f "${H4}/AGENTS.md"
 
+read -r S4b H4b <<<"$(fresh_prefix dry_run_bootstrap)"
+if "$INSTALL" --target "$S4b" --dsh-home "$H4b" --dry-run >"${WORK}/dry-bootstrap.out" 2>&1; then
+  ok "--dry-run completes (exit 0)"
+else
+  no "--dry-run completes (exit 0)" "died building the bootstrap preview"
+fi
+check "--dry-run previews the bootstrap" grep -q "would write Superpowers bootstrap" "${WORK}/dry-bootstrap.out"
+check "--dry-run bootstrap preview writes nothing" test ! -f "${H4b}/AGENTS.md"
+
 read -r S5 H5 <<<"$(fresh_prefix badflag)"
 if "$INSTALL" --target "$S5" --dsh-home "$H5" --nonsense >/dev/null 2>&1; then
   no "rejects an unknown option" "exited 0"

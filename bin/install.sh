@@ -385,6 +385,12 @@ install_bootstrap() {
   local skill_dir="${target_skills}/using-superpowers"
   local block_file
 
+  # In dry-run the target is never written, so preview the bootstrap from the
+  # vendored copy instead of dying on a skill dir that does not exist yet.
+  if [ "$dry_run" -eq 1 ]; then
+    skill_dir="${VENDOR_SKILLS}/using-superpowers"
+  fi
+
   if [ ! -r "${skill_dir}/SKILL.md" ]; then
     die "cannot build bootstrap: ${skill_dir}/SKILL.md not found (install skills first)"
   fi
