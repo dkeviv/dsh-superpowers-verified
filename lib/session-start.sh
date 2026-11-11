@@ -30,10 +30,26 @@ fi
 # Bash builtin read; no PATH dependency (this may run in odd environments).
 using_superpowers_content="$(<"$skill_md")"
 
-# DSH's own tool for loading a skill is `skill`, and the catalog of every
-# installed skill is already in the session context, so there is no `Skill`
-# tool to point at. Rewrite that one sentence; the wording mirrors upstream.
-using_superpowers_content="${using_superpowers_content//"For all other skills, use the 'Skill' tool:"/"The full catalog of installed skills is already in your session context; load any of them with DSH's \`skill\` tool by name."}"
+# Every DSH adaptation of the SKILL.md body belongs to
+# lib/patch-using-superpowers.mjs (platform list, tool mapping); this emitter
+# only wraps what it reads. Upstream's Platform Adaptation list names other
+# harnesses by design and the patch owns rewriting it - the dry-run preview
+# even reads the vendored, unpatched copy - so that one list is stripped
+# before scanning. Anything else naming Claude Code's own tools means the
+# patch and this emitter have drifted apart - fail loudly rather than ship
+# instructions for tools DSH does not have.
+adapted_content="$(printf '%s\n' "$using_superpowers_content" | awk '
+  /^If your harness appears here, read its reference file for special instructions:$/ { skip = 1; next }
+  skip && (/^$/ || /^- /) { next }
+  skip { skip = 0 }
+  { print }
+')"
+if printf '%s' "$adapted_content" | grep -qE "use the 'Skill' tool|TodoWrite|Task tool|claude-code-tools\.md"; then
+  echo "session-start: the SKILL.md body still names Claude Code tools that DSH does not have." >&2
+  echo "session-start: lib/patch-using-superpowers.mjs and this emitter have drifted apart;" >&2
+  echo "session-start: extend the patch (and references/dsh-tools.md) before installing." >&2
+  exit 1
+fi
 
 printf '<EXTREMELY_IMPORTANT>\n'
 printf 'You have superpowers.\n\n'

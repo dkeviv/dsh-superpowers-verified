@@ -594,6 +594,48 @@ check "patch script fails on a missing skill dir" \
 check "patch script fails on a restructured SKILL.md instead of silently skipping" \
   bash -c "d='${WORK}/restructured'; mkdir -p \"\$d\"; printf -- '---\nname: using-superpowers\ndescription: x\n---\n\nNo platform list here.\n' > \"\$d/SKILL.md\"; ! node '${REPO_ROOT}/lib/patch-using-superpowers.mjs' \"\$d\" 2>/dev/null"
 
+
+# ---------------------------------------------------------------------------
+section "13. Bootstrap content guard"
+
+# Simulates a future upstream whose skill body names Claude Code's own tools.
+# session-start.sh must refuse to emit that content: on DSH there is no 'Skill'
+# tool and no TodoWrite, and a bootstrap that ships them is worse than a failed
+# install (same policy as the patch script's fail-loud behaviour).
+read -r S6 H6 <<<"$(fresh_prefix guard_fixture)"
+mkdir -p "${S6}/using-superpowers"
+cat > "${S6}/using-superpowers/SKILL.md" <<'MD'
+---
+name: using-superpowers
+description: fixture simulating an upstream that names Claude Code tools
+---
+
+For all other skills, use the 'Skill' tool: superpowers:brainstorming.
+
+Track your work with TodoWrite.
+MD
+if bash "${REPO_ROOT}/lib/session-start.sh" "${S6}/using-superpowers" >"${WORK}/guard.out" 2>&1; then
+  no "session-start refuses unadapted Claude Code tool names" "exited 0"
+else
+  ok "session-start refuses unadapted Claude Code tool names"
+fi
+check "refusal names the drifted pair" grep -q "patch-using-superpowers" "${WORK}/guard.out"
+if grep -q "EXTREMELY_IMPORTANT" "${WORK}/guard.out"; then
+  no "refusal emits no bootstrap block" "block content leaked"
+else
+  ok "refusal emits no bootstrap block"
+fi
+
+# The installed skill must carry none of those names, so the guard stays
+# meaningful and a future upstream addition cannot slip through silently.
+read -r S7 H7 <<<"$(fresh_prefix guard_clean)"
+"$INSTALL" --target "$S7" --dsh-home "$H7" >/dev/null 2>&1
+if bash "${REPO_ROOT}/lib/session-start.sh" "${S7}/using-superpowers" | grep -qE "use the 'Skill' tool|TodoWrite|Task tool|claude-code-tools\.md"; then
+  no "installed skill carries no Claude Code tool names" "marker found in emitted bootstrap"
+else
+  ok "installed skill carries no Claude Code tool names"
+fi
+
 # ---------------------------------------------------------------------------
 printf '\n\033[1m%d passed, %d failed\033[0m\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1
