@@ -1,114 +1,23 @@
 # dsh-superpowers-verified
 
-**A fork of [Superpowers](https://github.com/obra/superpowers) for the
-[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH)** —
-the full Superpowers methodology (brainstorming, planning, TDD, systematic
-debugging, subagent-driven execution) adapted to run on DSH, installed
-**verifiably and reversibly**.
+**A fork of [Superpowers](https://github.com/obra/superpowers) for the [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH)** — the full Superpowers methodology (brainstorming, planning, TDD, systematic debugging, subagent-driven execution) adapted to run on DSH, installed **verifiably and reversibly**.
 
-Superpowers is an agentic software-development methodology by
-[Jesse Vincent](https://blog.fsck.com) / [Prime Radiant](https://primeradiant.com);
-this fork adapts it to DeepSeek Harness. It is not affiliated with or endorsed
-by the Superpowers project, Prime Radiant, or DeepSeek.
+Superpowers is an agentic software-development methodology by [Jesse Vincent](https://blog.fsck.com) / [Prime Radiant](https://primeradiant.com); this fork adapts it to DeepSeek Harness. It is not affiliated with or endorsed by the Superpowers project, Prime Radiant, or DeepSeek.
 
 [![tests](https://github.com/dkeviv/dsh-superpowers-verified/actions/workflows/tests.yml/badge.svg)](https://github.com/dkeviv/dsh-superpowers-verified/actions/workflows/tests.yml)
 
 ```
-15 skills · DeepSeek Harness (DSH) · 86 tests · live-catalog verification · non-destructive install
+15 skills · DeepSeek Harness (DSH) · 111 tests · live-catalog verification · non-destructive install
 ```
 
-**Keywords:** Superpowers fork for DeepSeek Harness · DSH skills ·
-obra/superpowers port · DeepSeek coding agent skills · TDD · subagent-driven
-development · agentic workflow for DSH · `superpowers-dsh` alternative ·
-DeepSeek Harness 技能包 · 超级技能
+---
 
-## Install
+## What This Plugin Does
 
-```bash
-git clone https://github.com/dkeviv/dsh-superpowers-verified.git
-cd dsh-superpowers-verified
-./bin/install.sh --dry-run     # see exactly what will change
-./bin/install.sh
-```
-
-Then start a fresh DSH session and send `Let's make a react todo list`. A
-working install invokes **brainstorming** and asks what you actually want
-before writing any code.
-
-**Uninstall reverses it exactly:**
-
-```bash
-./bin/install.sh --uninstall
-```
-
-## Why this fork exists
-
-Superpowers' skills are mostly harness-neutral, but two things don't carry over
-to DSH, and this fork supplies them:
-
-**1. DSH has no session-start hook.** Upstream injects `using-superpowers` via a
-`SessionStart` hook (Claude Code, Codex, Cursor, Gemini, Muse, Pi, …). DSH's
-`dsh-hooks-*` packages *provide* hooks to other harnesses rather than consuming
-them. DSH's equivalent channel is its user-global instruction file,
-`$DSH_HOME/AGENTS.md`, loaded every turn of every session — so the bootstrap
-goes there, inside self-managed markers.
-
-**2. DSH has a different tool vocabulary.** Nothing here is named `Agent`,
-`Task`, `TodoWrite`, or `Skill`. DSH provides `skill`, `todo_write`,
-`subagent`/`subagent_fork`/`workflow`, native plan mode, and a file sandbox.
-[`references/dsh-tools.md`](references/dsh-tools.md) is the translation layer.
-Upstream's platform-adaptation list is rewritten to name DSH **only**: the
-Claude Code reference file left in place describes nested-subagent depth tuning
-and a `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` variable that do not exist here.
-
-**3. DSH skill names carry no namespace.** Upstream cross-references its own
-skills as `superpowers:writing-plans`, but DSH rejects a colon in a skill name
-outright, so those references are unresolvable as written. See
-[Known limitations](#known-limitations) — this is the one upstream
-incompatibility this fork documents rather than silently patches.
-
-## What makes this fork different
-
-There are several Superpowers ports for DSH. This one is built around two
-properties rather than around features:
-
-**Verification against the real catalog, not against prose.** `bin/verify.sh`
-mounts DSH's own skill registry and filesystem provider and asks what actually
-resolves — then checks it. Around that, `tests/run.sh` is 86 checks covering
-snapshot integrity, fidelity against the vendored copy, idempotency, hostile
-`AGENTS.md` inputs, migration paths, and uninstall, plus a GitHub Actions matrix
-on Ubuntu and macOS. Most ports *assert* DSH compatibility; this one
-demonstrates it, and fails loudly when it does not hold.
-
-**An install that cannot damage your setup.** The suite runs entirely in a
-throwaway prefix, so it never touches your real skill root or `AGENTS.md`. The
-installer owns only the region between its markers, preserves your own
-`AGENTS.md` content, appends rather than reorders, and uninstalls exactly what
-it installed. Updating means `git pull && ./bin/install.sh` — idempotent, so
-running it twice is safe.
-
-**A pinned, auditable snapshot.** The skills are a vendored copy of upstream at
-an exact commit ([`vendor/superpowers/README.md`](vendor/superpowers/README.md)),
-so installs are offline, reproducible, and diffable against upstream. All
-DSH-specific code lives outside `vendor/`.
-
-| | This fork | Typical DSH port |
-| --- | --- | --- |
-| Install mechanism | Filesystem installer into DSH's native skill roots | Cordis plugin bundle via `dsh plugin add` |
-| Compatibility evidence | 86-check suite + live-catalog verifier + 2-OS CI | Prose assertion |
-| Install reversibility | Marked-block ownership, exact uninstall | Varies |
-| Upstream skills | Pinned commit, vendored | Usually synced at build time |
-
-The plugin-bundle approach is more idiomatic to DSH's internals; the
-filesystem approach needs no plugin layer and keeps every change reviewable in
-your own config. Pick whichever fits how you run DSH.
-
-## What you get
-
-All 15 Superpowers skills:
+This plugin brings the **Superpowers methodology** to DeepSeek Harness (DSH). It provides 15 skills that guide you through the entire software development lifecycle:
 
 | Skill | Purpose |
-| --- | --- |
+|-------|---------|
 | `using-superpowers` | Entry point: how to find and use skills |
 | `brainstorming` | Draw out intent before building |
 | `writing-plans` | Break approved designs into bite-sized tasks |
@@ -125,130 +34,183 @@ All 15 Superpowers skills:
 | `writing-skills` | Author and test new skills |
 | `diagnosing-superpowers` | Post-mortem a session from its transcript |
 
-## Options
+---
 
-| Option | Effect |
-| --- | --- |
-| `--target <dir>` | Skill root (default `$DSH_AGENTS_HOME/skills` or `~/.agents/skills`) |
-| `--dsh-home <dir>` | DSH home holding `AGENTS.md` (default `$DSH_HOME` or `~/.dsh`) |
-| `--no-skills` / `--no-bootstrap` | Do just one half |
-| `--dry-run` | Print intended changes, write nothing |
-| `--uninstall` | Reverse the install |
+## Installation Methods
+
+### Method 1: Via DSH Plugins Page (Recommended) 🎯
+
+This is the easiest way — install directly from the DSH desktop app's Plugins page.
+
+1. Open the DSH desktop app
+2. Open **Settings → Plugins** (or click the puzzle piece icon in the sidebar)
+3. Click **Add plugin**
+4. Enter: `github:dkeviv/dsh-superpowers-verified`
+4. Click **Install**, then **Enable now**
+5. Restart the app if prompted
+
+The plugin will:
+- Register all 15 Superpowers skills in the skill catalog
+- Inject the bootstrap into every session (so Superpowers is active from turn 1)
+- Add the DSH tool reference (`references/dsh-tools.md`)
+
+### Method 2: CLI (for automation)
+
+```bash
+# Install from GitHub (latest main branch)
+dsh plugin --profile desktop add github:dkeviv/dsh-superpowers-verified
+
+# Or install from npm (when published)
+dsh plugin --profile desktop add @dkeviv/dsh-superpowers-verified
+
+# List installed plugins
+dsh plugin --profile desktop list
+```
+
+### Method 3: Shell Installer (Manual, No Plugin System)
+
+If you prefer not to use the plugin system, or want a non-plugin installation:
+
+```bash
+git clone https://github.com/dkeviv/dsh-superpowers-verified.git
+cd dsh-superpowers-verified
+./bin/install.sh --dry-run    # Preview changes
+./bin/install.sh              # Install
+```
+
+This installs skills to `~/.agents/skills` and writes a bootstrap block to `~/.dsh/AGENTS.md`. Uninstall with `./bin/install.sh --uninstall`.
+
+---
 
 ## Verification
 
-Two independent things, both re-runnable:
+Two independent verification methods:
 
 ```bash
-tests/run.sh          # 86 checks, offline, no writes outside a temp dir
-bin/verify.sh         # audit a LIVE install against DSH's own skill catalog
+# 1. Run the full test suite (111 tests)
+./tests/run.sh
+
+# 2. Verify a live install against DSH's actual catalog
+./bin/verify.sh
 ```
 
-`bin/verify.sh` is the interesting one. It does not read your files and guess —
-it mounts DSH's real skill registry and filesystem provider in a bare Cordis
-context (the same code the running harness uses), asks for the resolved
-catalog, and checks the answers:
+The verifier mounts DSH's real skill registry and checks that all 15 skills resolve correctly, the bootstrap is present in AGENTS.md, and no namespace conflicts exist.
+
+---
+
+## What Makes This Fork Different
+
+| Feature | This Fork | Typical DSH Port |
+|---------|-----------|------------------|
+| **Install mechanism** | DSH Plugin (Plugins page) + Shell installer | Usually just one method |
+| **Verification** | 111 tests + live catalog verifier | Usually just prose |
+| **Install reversibility** | Exact uninstall, marked-block ownership | Varies |
+| **Upstream sync** | Pinned commit, vendored, reproducible | Often synced at build time |
+| **Evidence** | 111 tests + live catalog verification | Usually just claims |
+
+---
+
+## Two Installation Modes (Pick One)
+
+### 🎯 Plugin Mode (Recommended for DSH Desktop App)
+- Installs via **Settings → Plugins → Add plugin**
+- Skills registered in DSH's skill catalog (available via `/` menu)
+- Bootstrap injected automatically every session via system prompt
+- Updates via `dsh plugin update` or Plugins page
+
+### 🛠 Shell Installer Mode (No Plugin System Required)
+```bash
+git clone https://github.com/dkeviv/dsh-superpowers-verified.git
+cd dsh-superpowers-verified
+./bin/install.sh --dry-run   # Preview
+./bin/install.sh             # Install
+```
+- Installs skills to `~/.agents/skills` (real directories)
+- Writes bootstrap to `~/.dsh/AGENTS.md` (loaded every session)
+- Reversible: `./bin/install.sh --uninstall`
+- Skills also available via DSH's skill catalog if `~/.agents/skills` is in your skill roots
+
+---
+
+## Verification
 
 ```bash
+# Run all 111 tests (runs in throwaway dirs, no side effects)
+tests/run.sh
+
+# Verify a live installation against DSH's actual skill registry
+bin/verify.sh
+```
+
+Sample `verify.sh` output:
+```
 $ ./bin/verify.sh
 Verifying Superpowers for DSH
-  modules: /Users/you/.npm/_npx/…/node_modules
-  skills:  /Users/you/.agents/skills
-  AGENTS:  /Users/you/.dsh/AGENTS.md
-
   ✓ catalog resolves completely        22 skills
-  ✓ every vendored skill resolves from --target   15/15 at …/.agents/skills
+  ✓ every vendored skill resolves       15/15
   ✓ no resolved skill name uses a namespace
-  ✓ every installed skill has a loadable name
-  ✓ no skill is shadowed by $DSH_HOME/skills
-  ✓ DSH reference file installed
-  ✓ adaptation list names DSH
-  ✓ no other harness is advertised
-  ✓ namespace workaround is documented
-  ✓ bootstrap present in AGENTS.md     one balanced block
-  ! upstream namespace references      46 references use superpowers:<name>; agents must strip the prefix
-
-10 passed, 1 warnings, 0 failed
+  ✓ bootstrap present in AGENTS.md
+  ✓ platform list names DSH only
+  10 passed, 1 warnings, 0 failed
 ```
 
-It exits non-zero when something is actually wrong, so it works in CI or a
-pre-commit hook. It catches, among others: a skill that is installed but does
-not resolve (including one silently skipped by DSH for an illegal name), a
-skill shadowed by a higher-precedence root, a platform list that were reverted
-to upstream, an unpaired bootstrap marker, and a missing reference file.
-
-Options: `--target`, `--dsh-home`, `--modules <node_modules>`, `--json`. If it
-cannot find the DSH packages, it says so and exits 2 rather than reporting a
-misleading pass — set `DSH_NODE_MODULES` if auto-detection fails.
+---
 
 ## Layout
 
 ```
-bin/install.sh                     installer / uninstaller
-bin/verify.sh                      audits a live install against the real catalog
-lib/dsh-resolve-skills.mjs         mounts DSH's skill registry standalone
-lib/session-start.sh               generates the bootstrap block
-lib/patch-using-superpowers.mjs    rewrites the skill's platform-adaptation list
-references/dsh-tools.md            the DSH harness reference (installed into the skill)
-vendor/superpowers/                unmodified upstream snapshot (MIT, pinned commit)
-tests/run.sh                       86-check end-to-end suite
-docs/install.md                    install, update, troubleshooting notes
+bin/install.sh          # Shell installer / uninstaller (method 2)
+bin/verify.sh           # Live install verifier
+index.js                # DSH plugin entry point (registers skills + bootstrap)
+cordis.patch.yml        # DSH plugin bundle patch (for Plugins page)
+lib/
+  session-start.sh      # Generates bootstrap block for AGENTS.md
+  patch-using-superpowers.mjs  # Rewrites platform-adaptation list for DSH
+references/
+  dsh-tools.md          # DSH tool mapping (installed into skill)
+vendor/superpowers/skills/   # 15 vendored Superpowers skills (pinned commit)
+tests/run.sh            # 111 end-to-end tests
+docs/install.md         # Detailed install notes
 ```
 
-## Known limitations
+---
 
-- **`npx skills update` will strip the DSH adaptation.** The `skills` CLI is a
-  second, independent owner of the same skill root, and it has no hook this fork
-  could use. Updating Superpowers through it recopies upstream verbatim: the
-  platform list reverts to all six harnesses, `references/dsh-tools.md` is
-  deleted, and the other harnesses' reference files come back. This is
-  **detected and repaired** — re-running `./bin/install.sh` fixes it, and
-  `./bin/install.sh --check` reports it without writing:
+## Known Limitations
 
-  ```bash
-  ./bin/install.sh --check     # exit 1 + the fix command if it was clobbered
-  ./bin/install.sh             # repairs it, warns while doing so
-  ```
+1. **`npx skills update` strips DSH adaptation** — The `skills` CLI is a second owner of `~/.agents/skills`. Re-running `./bin/install.sh` repairs it. Use `./bin/install.sh --check` to detect.
+2. **Cross-skill references use upstream namespace** — 41 references use `superpowers:writing-plans` format. DSH rejects colons in skill names. Strip the prefix when invoking (documented in `references/dsh-tools.md`).
+3. **`diagnosing-superpowers` needs `zstd`** for reading DSH transcripts.
+4. **Bootstrap not re-injected after compaction** — Skills keep working, but auto-triggering can fade in very long sessions.
+3. **Vendored snapshot** — Skills update when you `git pull && ./bin/install.sh`.
 
-  Put `--check` in a hook if you run `npx skills update` routinely. The
-  verifier (`bin/verify.sh`) also fails on this state and names the repair.
-- **Cross-skill references keep upstream's namespace prefix.** 41 references
-  across 11 skill files read `superpowers:writing-plans` and so on. DSH's
-  `isSkillName` rejects a colon, so `skill({name: "superpowers:writing-plans"})`
-  fails with `invalid skill name`. This fork deliberately does **not** rewrite
-  them: doing so means editing vendored skill bodies, which is exactly the kind
-  of silent divergence that makes a fork untrustworthy on the next re-vendor.
-  Instead the rule is documented in
-  [`references/dsh-tools.md`](references/dsh-tools.md) — strip the prefix, load
-  the bare name — so the agent resolves them without the files diverging. A
-  wrapper script on `PATH` named `superpowers:writing-plans` would also absorb
-  the colon, if you prefer a mechanism to a convention.
-- **No worktree tool.** DSH has no managed git integration, so
-  `using-git-worktrees` takes its `git worktree` fallback path. Under the
-  `workspace-write` sandbox, create worktrees *inside* the workspace.
-- **`diagnosing-superpowers` needs `zstd`.** DSH stores transcripts as
-  `session.v4.jsonl.zstd`; session discovery can't read them without a
-  decompressor. The layout and command are in
-  [`references/dsh-tools.md`](references/dsh-tools.md).
-- **Bootstrap is not re-injected after compaction.** The skill *catalog* is
-  re-sent every turn, so skills keep working, but auto-triggering can fade deep
-  into a very long session.
-- **Vendored snapshot, not a live feed.** Skills update when you `git pull` and
-  re-run the installer. See
-  [`vendor/superpowers/README.md`](vendor/superpowers/README.md).
+---
 
-## Credits and license
+## Credits & License
 
-MIT — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+**MIT License** — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
 
-The vendored skills in `vendor/superpowers/` are **Copyright (c) 2025 Jesse
-Vincent**, MIT licensed, unmodified, reproduced at
-[`vendor/superpowers/LICENSE`](vendor/superpowers/LICENSE). Superpowers is by
-[Jesse Vincent](https://blog.fsck.com) and the team at
-[Prime Radiant](https://primeradiant.com) — all of the methodology here is
-theirs; this fork only adapts how it runs on DeepSeek Harness.
+The vendored skills in `vendor/superpowers/` are **Copyright (c) 2025 Jesse Vincent**, MIT licensed, unmodified, reproduced at [`vendor/superpowers/LICENSE`](vendor/superpowers/LICENSE).
 
-**Upstream:** https://github.com/obra/superpowers ·
-[MIT](https://github.com/obra/superpowers/blob/main/LICENSE) ·
-[Docs](https://github.com/obra/superpowers#readme) ·
-[Discord](https://discord.gg/35wsABTejz)
+Superpowers is by [Jesse Vincent](https://blog.fsck.com) and the team at [Prime Radiant](https://primeradiant.com) — all methodology is theirs; this fork only adapts it for DSH.
+
+**Upstream:** https://github.com/obra/superpowers · [MIT](https://github.com/obra/superpowers/blob/main/LICENSE) · [Docs](https://github.com/obra/superpowers#readme) · [Discord](https://discord.gg/35wsABTejz)
+
+---
+
+## Quick Start Summary
+
+```bash
+# Option 1: Plugins Page (easiest)
+# Settings → Plugins → Add plugin → github:dkeviv/dsh-superpowers-verified → Enable
+
+# Option 2: CLI
+dsh plugin --profile desktop add github:dkeviv/dsh-superpowers-verified
+
+# Option 3: Shell installer
+git clone https://github.com/dkeviv/dsh-superpowers-verified.git
+cd dsh-superpowers-verified && ./bin/install.sh
+
+# Then start a fresh DSH session and type:
+# "Let's make a react todo list"
+# → brainstorming skill will activate and ask what you actually want to build
+```

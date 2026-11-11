@@ -1,0 +1,13 @@
+# dsh-superpowers-verified plugin bundle patch
+# This patch registers the Superpowers plugin with DSH
+# 
+# When installed via `dsh plugin --profile <name> add github:dkeviv/dsh-superpowers-verified`,
+# this patch is applied to the profile's Cordis registry.
+
+- id: superpowers
+  name: "@dkeviv/dsh-superpowers-verified"
+  config:
+    # Configuration options for the plugin
+    skillsRoot: "~/.agents/skills"
+    dshHome: "~/.dsh"
+    autoBootstrap: true
